@@ -1,3 +1,7 @@
 .DS_Store
 *.log
 grafana-data/log/*
+__pycache__
+*.p12
+*_ignoreme*
+.ipynb_checkpoints
