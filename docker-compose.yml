@@ -1,24 +1,31 @@
 version: '3'
 
 services:
-  gtt: 
-    build: ./mtk/
-    command: python green_transport_twin.py --url=http://scorpio:9090 --intervall=900 --logs=./ --simulate=1
-    volumes:
-      - ./mtk:/gtt
-#    depends_on:
-#      - scorpio
-  emission_ngsild: 
-    build: ./mtk/
-    command: bash -c "cp *.py /emission/e-mission-server/ && cd /emission/e-mission-server/ && python emission_ngsild_adapter.py --url=http://scorpio:9090 --intervall=7200 --logs=./" 
-    volumes:
-      - ./mtk:/gtt
-      - ~/e-mission-server-docker/src:/emission
-#      - ~/testmount:/gtt/emission
+  mtk: 
+    image: scorpiobroker/mtk:latest
+    environment:
+      URL: http://scorpio:9090
+      INTERVAL: 600
     depends_on:
-      - web-server
+      - scorpio
+  emission_ngsild: 
+    depends_on:
+      - db
+      - scorpio
+    image: scorpiobroker/emissionadapter
+    environment:
+      INTERVAL: 900
+      URL: http://scorpio:9090
+      DB_URL: db
     restart: on-failure
-
+  mdmadapter:
+    image: scorpiobroker/mdmadapter
+    environment:
+      INTERVAL: 60
+      URL: http://scorpio:9090
+      SUBSCRIPTION_ID: urn:sub:test1
+      P12_CERT: /something/
+      P12_PASS: pass
   grafana:
     image: grafana/grafana:7.3.1
     user: "1000"
@@ -54,7 +61,7 @@ services:
       POSTGRES_PASSWORD: ngb
       POSTGRES_DB: ngb
   scorpio:
-    image: scorpiobroker/scorpio:scorpio-aaio_FIWARE_8.1.0
+    image: scorpiobroker/scorpio:scorpio-aaio-no-eureka_latest
     hostname: scorpio
     environment:
       spring_args: --defaultLimit=5000 --maxLimit=50000
@@ -90,7 +97,7 @@ services:
       - ~/e-mission-server-docker/src:/usr/src/app/
       - ~/e-mission-server-docker/logs:/var/tmp
   db:
-    image: mongo:3.4
+    image: mongo:3.6
     deploy:
       replicas: 1
       restart_policy:

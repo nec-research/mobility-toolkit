@@ -1,0 +1,48 @@
+from __future__ import unicode_literals
+from __future__ import print_function
+from __future__ import division
+from __future__ import absolute_import
+# Standard imports
+from future import standard_library
+standard_library.install_aliases()
+from builtins import *
+import json
+import requests
+import logging
+import uuid
+import random
+
+# Our imports
+import emission.net.ext_service.push.notify_interface as pni
+import emission.net.ext_service.push.notify_queries as pnq
+
+def __get_default_interface__():
+    interface_obj = pni.NotifyInterfaceFactory.getDefaultNotifyInterface()
+    logging.debug("interface_obj = %s" % interface_obj)
+    return interface_obj
+
+def send_visible_notification_to_users(user_id_list, title, message, json_data, dev=False):
+    token_map = pnq.get_matching_tokens(pnq.get_user_query(user_id_list))
+    logging.debug("user_id_list of length %d -> token list of length %d" % 
+        (len(user_id_list), len(token_map["ios"]) + len(token_map["android"])))
+    return __get_default_interface__().send_visible_notification(token_map, title, message, json_data, dev)
+
+def send_silent_notification_to_users(user_id_list, json_data, dev=False):
+    token_map = pnq.get_matching_tokens(pnq.get_user_query(user_id_list))
+    logging.debug("user_id_list of length %d -> token list of length %d" % 
+        (len(user_id_list), len(token_map)))
+    return __get_default_interface__().send_silent_notification(token_map, json_data, dev)
+
+def send_silent_notification_to_ios_with_interval(interval, dev=False):
+    query = pnq.combine_queries([pnq.get_platform_query("ios"),
+                                 pnq.get_sync_interval_query(interval)])
+    token_map = pnq.get_matching_tokens(query)
+    logging.debug("found %d tokens for ios with interval %d" % (len(token_map), interval))
+    return __get_default_interface__().send_silent_notification(token_map, {}, dev)
+
+def display_response(response):
+    if response is None:
+        logging.debug("did not send push to push notification service")
+        return
+
+    return __get_default_interface__().display_response(response)

@@ -1,0 +1,6 @@
+{
+    "timeseries": {
+        "url": "db",
+        "result_limit": 250000
+    }
+}
