@@ -281,7 +281,7 @@ if __name__ == "__main__":
             pkcs12_password=pkcs12_password,
         )
         if response.status_code != 200:
-            logger.warning("request failed: %s", r.status_code)
+            LOGGER.warning("request failed: %s", r.status_code)
             sleep_time = args.intervall - (time.time() - t0)
             continue
         dict_data = xmltodict.parse(response.content)
