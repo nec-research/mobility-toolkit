@@ -1,35 +1,24 @@
-from requests_pkcs12 import get, post
-from math import asin, cos, radians, sin, sqrt
-
-import numpy as np
-
-from pathlib import Path
-
-import copy
-from model import (
-    ngsi_template_emissionobserved,
-    ngsi_template_vehicle,
-    traffic_sensor_locations,
-    transport_modes_model,
-    ngsi_template_trafficflow_observed,
-)
-from utils import compute_carbon_footprint, translate_transport_mode
-import uuid
-import datetime
-
-
 import argparse
+import base64
+import copy
+import datetime
 import enum
 import json
 import logging
 import time
 import uuid
-import xmltodict
-import json
-import base64
+from math import asin, cos, radians, sin, sqrt
+from pathlib import Path
 
+import numpy as np
 import requests
+import xmltodict
+from requests_pkcs12 import get, post
 
+from model import (ngsi_template_emissionobserved,
+                   ngsi_template_trafficflow_observed, ngsi_template_vehicle,
+                   traffic_sensor_locations, transport_modes_model)
+from utils import compute_carbon_footprint, translate_transport_mode
 
 ENTITY_TYPE = "TrafficFlowObserved"
 # ENTITY_TYPE = "Vehicle"
@@ -42,6 +31,9 @@ def pandas_compute_carbon_footprint(x):
 def create_payloads(parsed, logger):
     payloads = []
     for v in parsed:
+        if "_id" not in v:
+            logger.warning("Payload has no ID field: %s", v)
+            continue
         observedAt = v["time"] + "00"
         measurements = v["atg_tlsLveErgebnisMeldungVersion0Bis4"]
         for qmode in [
@@ -57,6 +49,7 @@ def create_payloads(parsed, logger):
         ]:
             if qmode in measurements:
                 if measurements[qmode][0] != "0":
+
                     skey = qmode
                     skey = "v" + skey[1:]
                     speed = measurements[skey].split()[0]
@@ -246,7 +239,11 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--p12_pass", dest="p12_pass", type=str, required=True, help="Password for MDM",
+        "--p12_pass",
+        dest="p12_pass",
+        type=str,
+        required=True,
+        help="Password for MDM",
     )
 
     args = parser.parse_args()
@@ -276,7 +273,7 @@ if __name__ == "__main__":
         response = get(
             url,
             headers={"Content-Type": "application/json"},
-            verify=False,
+            # verify=False,
             pkcs12_filename=pkcs12_filename,
             pkcs12_password=pkcs12_password,
         )
