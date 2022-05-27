@@ -164,7 +164,7 @@ def createTrafficFlowObserved(
     payload["occupancy"]["value"] = occupancy
 
     if entity_id:
-        payload["id"] = entity_id
+        payload["id"] = "urn:ngsi-ld:TrafficFlowObserved:"+ entity_id
     else:
         payload["id"] = "urn:ngsi-ld:TrafficFlowObserved:" + str(uuid.uuid4())
     payload["vehicleType"]["value"] = translate_transport_mode(vehicleType)
