@@ -24,20 +24,31 @@ def get_token(token_url, payload):
 
 
 def transform2ld(entity):
+    observedAt = entity["dateObserved"]["value"]
     for k, v in entity.items():
         if isinstance(v, dict):
             if "type" in v and "value" in v:
                 if v["type"] in ["Text", "Number", "DateTime"]:
-                    vn = {"type": "Property", "value": v["value"]}
+                    vn = {
+                        "type": "Property",
+                        "value": v["value"],
+                        "observedAt": observedAt,
+                    }
                     entity[k] = vn
                 elif v["type"] == "geo:json":
-                    vn = {"type": "GeoProperty", "value": v["value"]}
+                    vn = {
+                        "type": "GeoProperty",
+                        "value": v["value"],
+                        "observedAt": observedAt,
+                    }
                     entity[k] = vn
 
     entity["@context"] = [
         "https://raw.githubusercontent.com/smart-data-models/data-models/master/context.jsonld",
         "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
     ]
+    if "metadata" in entity:
+        del entity["metadata"]
 
 
 def post_payloads(payloads, broker_url):
@@ -45,7 +56,7 @@ def post_payloads(payloads, broker_url):
     headers = {"Content-Type": "application/ld+json"}
     r = requests.post(url, data=json.dumps(payloads), headers=headers)
     if r.status_code != 201:
-        LOGGER.warning("request failed: %s", r.status_code)
+        LOGGER.warning("request failed: %s %s" % (r.status_code, r.text))
     LOGGER.info("Pushed %s payloads", len(payloads))
 
 
@@ -83,6 +94,14 @@ if __name__ == "__main__":
         type=str,
         required=True,
         help="Query URL for NGSIv2 server",
+    )
+
+    parser.add_argument(
+        "--oauth2_token_url",
+        dest="oauth2_token_url",
+        type=str,
+        required=True,
+        help="Query URL for oauth2 token server",
     )
 
     parser.add_argument(
@@ -126,8 +145,10 @@ if __name__ == "__main__":
     fh.setFormatter(formatter)
     fh.setLevel(logging.DEBUG)
     LOGGER.addHandler(fh)
+    LOGGER.info("NGSIv2 adapter started")
     LOGGER.info("Logs Folder: %s", args.logs)
-    token_url = "https://accounts.fiware.kielregion.addix.io/oauth2/password"
+    print("NGSIv2 adapter started")
+    print("Log File: %s" % (args.logs + "/v2_ngsild_adapter.log"))
     payload = {
         "grant_type": "password",
         "client_id": args.client_id,
@@ -136,8 +157,9 @@ if __name__ == "__main__":
         "password": args.password,
     }
 
-    access_token = get_token(token_url=token_url, payload=payload)
+    access_token = get_token(token_url=args.oauth2_token_url, payload=payload)
     sleep_time = 0
+    cache = {}
     while True:
         for i in range(int(sleep_time)):
             time.sleep(1)
@@ -153,7 +175,9 @@ if __name__ == "__main__":
                 LOGGER.info(
                     "Token not valid/expired, getting new token...: %s", args.logs
                 )
-                access_token = get_token(token_url=token_url, payload=payload)
+                access_token = get_token(
+                    token_url=args.oauth2_token_url, payload=payload
+                )
                 # try to get new valid token
             elif r.status_code == 200:
                 break
@@ -162,16 +186,20 @@ if __name__ == "__main__":
                 sleep_time = args.intervall - (time.time() - t0)
                 continue
         results = r.json()
-        cache = {}
+        payloads = []
         for entity in results:
             if entity["id"] in cache:
-                if entity["dateObserved"] == cache[entity["id"]]:
+                # skip entities which have not been changed
+                if entity["dateObserved"]["value"] == cache[entity["id"]]:
                     continue
             transform2ld(entity)
-            cache[entity["id"]] = entity["dateObserved"]
-        post_payloads(results, broker_url=args.url)
-
-        LOGGER.info("Pushed new v2 data to NGSI-LD")
+            payloads.append(entity)
+            cache[entity["id"]] = entity["dateObserved"]["value"]
+        if payloads:
+            post_payloads(payloads, broker_url=args.url)
+            LOGGER.info("Pushed new v2 data to NGSI-LD")
+        else:
+            LOGGER.warning("No new data available, maybe increase polling intervall")
 
         t1 = time.time()
         delta = t1 - t0
