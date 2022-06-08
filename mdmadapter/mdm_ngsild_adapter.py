@@ -88,7 +88,7 @@ def create_payloads(parsed, logger):
                             laneDirection,
                             occupancy,
                             streetAddress=streetAddress,
-                            entity_id="urn:ngsi-ld:TrafficFlowObserved:" + entity_id,
+                            entity_id=entity_id,
                         )
                         payloads.append(payload)
                     elif ENTITY_TYPE == "Vehicle":
@@ -106,13 +106,16 @@ def create_payloads(parsed, logger):
 
 
 def post_payloads(payloads, broker_url, logger):
+    logger.debug(payloads)
     url = broker_url + "/ngsi-ld/v1/entityOperations/upsert"
     print(url)
     headers = {"Content-Type": "application/ld+json"}
     r = requests.post(url, data=json.dumps(payloads), headers=headers)
-    if r.status_code != 201:
+    if r.status_code not in [201, 204, 207]:
         logger.warning("request failed: %s", r.status_code)
-    logger.info("Pushed %s payloads", len(payloads))
+        logger.warning(r.text)
+    else:
+        logger.info("Pushed %s payloads", len(payloads))
 
 
 def createTrafficFlowObserved(
