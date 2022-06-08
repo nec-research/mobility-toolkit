@@ -16,6 +16,8 @@ class PredictedModeTypes(enum.IntEnum):
     LIGHT_RAIL = 9
 
 
+
+
 def translate_transport_mode(value):
     
     translation_dic = {
@@ -101,6 +103,28 @@ def compute_carbon_footprint(mode, distance):
 
     return co2/1000 
 
+def get_request(url, params, headers, logger, timeout=60):
+    try:
+        r = requests.get(
+            url,
+            params=params,
+            headers=headers,
+            timeout=timeout,
+        )
+        logger.debug("Query URL %s", r.url)
+        if r.status_code != 200:
+            logger.warning(
+                "Request to NGSI-LD Broker failed, status code: %s", r.status_code
+            )
+            return []
+        entities = r.json()
+        logger.debug("Received entities%s", entities)
+        return entities
+    except requests.exceptions.RequestException as e:
+        logger.error(
+            "Something went wrong connecting to the NGSI-LD broker. Maybe server is down."
+        )
+        return []
 
 
 # add context to fiware datamodel
