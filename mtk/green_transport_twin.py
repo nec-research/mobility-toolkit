@@ -16,12 +16,28 @@ import requests
 
 from model import (ngsi_template_emissionobserved, ngsi_template_vehicle,
                    traffic_sensor_locations, transport_modes_model)
-from utils import (compute_carbon_footprint, get_request,
-                   translate_transport_mode)
+from utils import (compute_carbon_footprint, get_request, get_transport_mode,
+                   post_payloads, translate_transport_mode)
 
 
 class GreenTransportTwin(object):
-    def __init__(self, broker_url, poll_intervall, simulate_mode, logger):
+    """
+    GreenTransportTwin combines NGSI-LD city transport data (Vehicle,
+    TrafficFlowObserved) to predict related CO2 emissions. To calibrate
+    emission values, it uses available SectionObserved entities that can e.g.,
+    collected through a crowd-sourcing platform such as E-mission/OpenPath. If
+    these are not available, the transport model in model.py is used. It can be
+    adapted to the sepcific city, e.g., based on available survey data for
+    typical trip lengths for different transport modes.
+    """
+
+    def __init__(
+        self,
+        broker_url: str,
+        poll_intervall: int,
+        simulate_mode: bool,
+        logger: logging.Logger,
+    ):
         self.broker_url = broker_url
         self.poll_intervall = poll_intervall
         self.simulate_mode = simulate_mode
@@ -72,7 +88,7 @@ class GreenTransportTwin(object):
                     self.logger.warning("Cannot process new data fast enough!")
                     sleep_time = 0
                 self.logger.info("Sleeping %s seconds", sleep_time)
-            for i in range(int(sleep_time)):
+            for _ in range(int(sleep_time)):
                 time.sleep(1)
                 if not self.running:
                     break
@@ -83,6 +99,10 @@ class GreenTransportTwin(object):
         sys.exit()
 
     def get_trafficflow_entities(self):
+        """
+        get all versions of TrafficFlowObserved entities during the poll_intervall
+        """
+
         entity_type = "TrafficFlowObserved"
         observedAt_property = "intensity"
 
@@ -114,6 +134,8 @@ class GreenTransportTwin(object):
 
         results = []
         for e in entities_temporal:
+            if e["id"] not in metadata:
+                continue  # might have new entities in temporal query that have been added to broker in between reqeuests
             i = 0
             for v in e[observedAt_property]:
                 r = {}
@@ -136,7 +158,11 @@ class GreenTransportTwin(object):
                 results.append(r)
         return results
 
-    def get_temporal_entities(self, entity_type):
+    def get_temporal_entities(self, entity_type: str) -> list:
+        """
+        get temporal entities during poll intervall
+        """
+
         headers = {
             "Link": '<https://raw.githubusercontent.com/smart-data-models/data-models/master/context.jsonld>; rel="http://www.w3.org/ns/json-ld#context"; type="application/ld+json"'
         }
@@ -156,7 +182,10 @@ class GreenTransportTwin(object):
         )
         return entities_temporal
 
-    def get_entities(self, entity_type, observedAt_property):
+    def get_entities(self, entity_type: str, observedAt_property: str) -> list:
+        """
+        get entities during poll intervall
+        """
         headers = {
             "Link": '<https://raw.githubusercontent.com/smart-data-models/data-models/master/context.jsonld>; rel="http://www.w3.org/ns/json-ld#context"; type="application/ld+json"'
         }
@@ -180,7 +209,11 @@ class GreenTransportTwin(object):
 
         return entities
 
-    def simulate_vehicle_data(self):
+    def simulate_vehicle_data(self) -> None:
+        """
+        simulate vehicle data based on defined traffic sensors in model.py
+        """
+
         for traffic_sensor in traffic_sensor_locations:
             if traffic_sensor["traffic"] > randrange(100):
                 observedAt = datetime.datetime.now(timezone.utc).strftime(
@@ -214,7 +247,8 @@ class GreenTransportTwin(object):
                             )
                         except requests.exceptions.RequestException as e:
                             self.logger.error(
-                                "Something went wrong connecting to the NGSI-LD broker. Maybe server is down."
+                                "Something went wrong connecting to the NGSI-LD broker. Maybe server is down. %s",
+                                e,
                             )
                             continue
 
@@ -230,7 +264,18 @@ class GreenTransportTwin(object):
                                 results, days=7, section_observed=False
                             )
 
-    def get_simulated_point(self, transport_mode, lon, lat, radius):
+    def get_simulated_point(
+        self, transport_mode: str, lon: float, lat: float, radius: int
+    ) -> list:
+        """
+        gets a likely point where an emission is assigned to based on typical
+        trip lengths for the specific transport mode and the existing road
+        network (based on openstreetmap) in the surroundings of the traffic
+        sensor (e.g., a car observation will more likely be placed on a main
+        road, a bicycle observation more likely on a bicycle path or smaller
+        road).
+        """
+
         self.logger.debug("get_simulated_point")
         query_file = open("./overpass_template")
         query_string = "".join(query_file.readlines())
@@ -279,7 +324,7 @@ class GreenTransportTwin(object):
         aggregated = {}
         if not common_keys:
             self.logger.warning("No common paths between OSM and transport mode found")
-            return None
+            return []
         for key in common_keys:
             length = len(ways[key])
             weight = transport_modes_model[transport_mode]["highways"][key]
@@ -289,33 +334,12 @@ class GreenTransportTwin(object):
         )[0]
         return nodes[random.choice(ways[choice])]
 
-    def get_transport_mode(self, e):
-        self.logger.debug("get_transport_mode")
-        if "https://uri.fiware.org/ns/data-models#vehicleType" in e:
-            return e["https://uri.fiware.org/ns/data-models#vehicleType"]["value"]
-        elif (
-            "https://smart-data-models.github.io/data-models/terms.jsonld#/definitions/vehicleType"
-            in e
-        ):
-            return e[
-                "https://smart-data-models.github.io/data-models/terms.jsonld#/definitions/vehicleType"
-            ]["value"]
-        elif "vehicleType" in e:
-            return e["vehicleType"]["value"]
-        elif e["type"] == "TrafficFlowObserved":
-            # e["type"] == "https://uri.fiware.org/ns/data-models#TrafficFlowObserved"
-            self.logger.info(
-                "No VehicleType available, trying to infer for TrafficFlowObserved"
-            )
-            for v in ["Velo", "ECO Counter"]:
-                if v.lower() in e["description"]["value"].lower():
-                    return "bicycle"
-                if v.lower() in e["source"]["value"].lower():
-                    return "bicycle"
-            self.logger.info("Failed to infer VehicleType for %s", e)
-        return None
+    def get_entity_data(self, entities: list) -> list:
+        """
+        get relevant data from Vehicle or TrafficFlowObserved entities that is
+        needed to predict EmissionObserved entities
+        """
 
-    def get_entity_data(self, entities):
         self.logger.debug("get_entity_data")
         results = []
         for e in entities:
@@ -324,7 +348,7 @@ class GreenTransportTwin(object):
                 # FIXME, bug in scorpio temporal query?
             emission_obs_id = e["id"].split(":")[-1]
             emission_obs_id = "EmissionObserved:" + emission_obs_id
-            vehicle_transport_mode = self.get_transport_mode(e)
+            vehicle_transport_mode = get_transport_mode(e, self.logger)
             if not vehicle_transport_mode:
                 continue  # skip this entity as we do not know transport mode
             vehicle_transport_mode = translate_transport_mode(vehicle_transport_mode)
@@ -348,58 +372,49 @@ class GreenTransportTwin(object):
                     )
         return results
 
-    def get_entity_data_old(self, entities):
-        results = []
-        for e in entities:
-            if "location" not in e:
-                continue
-                # FIXME, bug in scorpio temporal query?
-            emission_obs_id = e["id"].split(":")[-1]
-            emission_obs_id = "EmissionObserved:" + emission_obs_id
-            if "https://uri.fiware.org/ns/data-models#vehicleType" in e:
-                vehicle_transport_mode = e[
-                    "https://uri.fiware.org/ns/data-models#vehicleType"
-                ]["value"]
-            elif (
-                "https://smart-data-models.github.io/data-models/terms.jsonld#/definitions/vehicleType"
-                in e
-            ):
-                vehicle_transport_mode = e[
-                    "https://smart-data-models.github.io/data-models/terms.jsonld#/definitions/vehicleType"
-                ]["value"]
-            elif "vehicleType" in e:
-                vehicle_transport_mode = e["vehicleType"]["value"]
-            else:
-                continue
-            vehicle_transport_mode = translate_transport_mode(vehicle_transport_mode)
+    def get_means(
+        self, vehicle_transport_mode: str, coordinates: list, days: int
+    ) -> list:
+        """
+        get distance and speed means based on available SectionObserved entities
+        """
 
-            coordinates = e["location"]["value"]["coordinates"]
-            if (
-                e["type"] == "https://uri.fiware.org/ns/data-models#Vehicle"
-                or e["type"] == "Vehicle"
+        payload = {"type": "SectionObserved", "timerel": "after"}
+        payload["time"] = (
+            datetime.datetime.now() - datetime.timedelta(days=days)
+        ).strftime("%Y-%m-%dT%H:%M:%SZ")
+        payload["georel"] = "near;maxDistance==2000"
+        payload["geometry"] = "Point"
+        payload["coordinates"] = str(coordinates).replace(" ", "")
+        broker_temp_url = self.broker_url + "/ngsi-ld/v1/temporal/entities/"
+        try:
+            r = requests.get(broker_temp_url, params=payload)
+            sections = r.json()
+        except requests.exceptions.RequestException as e:
+            self.logger.error(
+                "Something went wrong connecting to the NGSI-LD broker. Maybe server is down."
+            )
+            return []
+        matching_sections = []
+        for s in sections:
+            if "odala:transportMode" not in s:
+                continue
+            if vehicle_transport_mode == translate_transport_mode(
+                s["odala:transportMode"]["value"]
             ):
-                observedAt = e["speed"]["observedAt"]
-                results.append(
-                    (emission_obs_id, observedAt, vehicle_transport_mode, coordinates)
-                )
-            elif (
-                e["type"] == "https://uri.fiware.org/ns/data-models#TrafficFlowObserved"
-                or e["type"] == "TrafficFlowObserved"
-            ):
-                observedAt = e["intensity"]["observedAt"]
-                intensity = e["intensity"]["value"]
-                for i in range(intensity):
-                    results.append(
-                        (
-                            emission_obs_id + "-" + str(i),
-                            observedAt,
-                            vehicle_transport_mode,
-                            coordinates,
-                        )
-                    )
-        return results
+                distance = s["odala:distance"]["value"]
+                speed = s["odala:speed"]["value"]  # FIXME
+                matching_sections.append([distance, speed])
+        sums = [sum(x) for x in zip(*matching_sections)]
+        means = [x / len(matching_sections) for x in sums]
+        return means
 
-    def estimate_emission(self, results, days=7, section_observed=False):
+    def estimate_emission(self, results: list, days=7, section_observed=False) -> None:
+        """
+        estimate EmissionObserved based on available SectionObserved or
+        transport_modes_model defined in model.py and push to scorpio
+        """
+
         self.logger.debug("estimate_emission")
         payloads = []
         cache = {}
@@ -415,34 +430,7 @@ class GreenTransportTwin(object):
                     self.logger.info("using cache")
                     means = cache[str(coordinates)]
                 else:
-                    payload = {"type": "SectionObserved", "timerel": "after"}
-                    payload["time"] = (
-                        datetime.datetime.now() - datetime.timedelta(days=days)
-                    ).strftime("%Y-%m-%dT%H:%M:%SZ")
-                    payload["georel"] = "near;maxDistance==2000"
-                    payload["geometry"] = "Point"
-                    payload["coordinates"] = str(coordinates).replace(" ", "")
-                    broker_temp_url = self.broker_url + "/ngsi-ld/v1/temporal/entities/"
-                    try:
-                        r = requests.get(broker_temp_url, params=payload)
-                        sections = r.json()
-                    except requests.exceptions.RequestException as e:
-                        self.logger.error(
-                            "Something went wrong connecting to the NGSI-LD broker. Maybe server is down."
-                        )
-                        sections = []
-                    matching_sections = []
-                    for s in sections:
-                        if "odala:transportMode" not in s:
-                            continue
-                        if vehicle_transport_mode == translate_transport_mode(
-                            s["odala:transportMode"]["value"]
-                        ):
-                            distance = s["odala:distance"]["value"]
-                            speed = s["odala:speed"]["value"]  # FIXME
-                            matching_sections.append([distance, speed])
-                    sums = [sum(x) for x in zip(*matching_sections)]
-                    means = [x / len(matching_sections) for x in sums]
+                    means = self.get_means(vehicle_transport_mode, coordinates, days)
                     cache[str(coordinates)] = means
             if len(means) > 0:
                 # use emission based values
@@ -475,25 +463,7 @@ class GreenTransportTwin(object):
             emission_observed["co2"]["value"] = co2
             emission_observed["abstractionLevel"] = {"type": "Property", "value": 17}
             payloads.append(emission_observed)
-        try:
-            headers = {"Content-Type": "application/ld+json"}
-            self.logger.info("posting payloads of length %s", (len(payloads)))
-            r = requests.post(
-                self.broker_url + "/ngsi-ld/v1/entityOperations/upsert",
-                data=json.dumps(payloads),
-                headers=headers,
-            )
-            if r.status_code in [201, 204, 207]:
-                self.logger.debug("Created new EmissionObserved entites")
-            else:
-                self.logger.warning(
-                    "EmissionObserved Creation failed, status code: %s",
-                    r.status_code,
-                )
-        except requests.exceptions.RequestException as e:
-            self.logger.error(
-                "Something went wrong connecting to the NGSI-LD broker. Maybe server is down."
-            )
+        post_payloads(payloads=payloads, broker_url=self.broker_url, logger=self.logger)
 
 
 if __name__ == "__main__":

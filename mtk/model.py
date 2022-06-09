@@ -1,5 +1,6 @@
 import numpy as np
 
+# based on EU survey data
 transport_modes_model = {
     "car": {
         "speed": np.random.normal(50, 50 / 10, 10000),
@@ -180,31 +181,22 @@ ngsi_template_trafficflow_observed = {
     "id": "urn:ngsi-ld:TrafficFlowObserved:TrafficFlowObserved1",
     "type": "TrafficFlowObserved",
     "description": {"type": "Property", "value": "loop1"},
-    "dateObserved": {  
-        "type": "Property",  
-        "value": "2016-12-07T11:10:00/2016-12-07T11:15:00"
-    }, 
-    "dateObservedFrom": {  
-        "type": "Property",  
-        "value": {  
-          "@type": "DateTime",  
-          "@value": "2016-12-07T11:10:00Z"  
-        }  
+    "dateObserved": {
+        "type": "Property",
+        "value": "2016-12-07T11:10:00/2016-12-07T11:15:00",
     },
-    "dateObservedTo": {  
-        "type": "Property",  
-        "value": {  
-          "@type": "DateTime",  
-          "@value": "2016-12-07T11:10:00Z"  
-        }  
+    "dateObservedFrom": {
+        "type": "Property",
+        "value": {"@type": "DateTime", "@value": "2016-12-07T11:10:00Z"},
     },
-    "address": {  
-        "type": "Property",  
-        "value": {  
-          "streetAddress": "Avenida de Salamanca",  
-          "type": "PostalAddress"  
-        }  
-    },  
+    "dateObservedTo": {
+        "type": "Property",
+        "value": {"@type": "DateTime", "@value": "2016-12-07T11:10:00Z"},
+    },
+    "address": {
+        "type": "Property",
+        "value": {"streetAddress": "Avenida de Salamanca", "type": "PostalAddress"},
+    },
     "location": {
         "type": "GeoProperty",
         "value": {
@@ -213,13 +205,31 @@ ngsi_template_trafficflow_observed = {
         },
         "observedAt": "2018-09-27T12:00:00Z",
     },
-    "vehicleType": {"type": "Property", "value": "car", "observedAt": "2018-09-27T12:00:00Z"},
-    "intensity": {"type": "Property", "value": 42, "observedAt": "2018-09-27T12:00:00Z"},
-    "averageVehicleSpeed": {"type": "Property", "value": 42, "observedAt": "2018-09-27T12:00:00Z"},
-    "laneDirection": {"type": "Property", "value": "forward", "observedAt": "2018-09-27T12:00:00Z"},
-    "occupancy": {"type": "Property", "value": 0.1, "observedAt": "2018-09-27T12:00:00Z"},
-    
-    
+    "vehicleType": {
+        "type": "Property",
+        "value": "car",
+        "observedAt": "2018-09-27T12:00:00Z",
+    },
+    "intensity": {
+        "type": "Property",
+        "value": 42,
+        "observedAt": "2018-09-27T12:00:00Z",
+    },
+    "averageVehicleSpeed": {
+        "type": "Property",
+        "value": 42,
+        "observedAt": "2018-09-27T12:00:00Z",
+    },
+    "laneDirection": {
+        "type": "Property",
+        "value": "forward",
+        "observedAt": "2018-09-27T12:00:00Z",
+    },
+    "occupancy": {
+        "type": "Property",
+        "value": 0.1,
+        "observedAt": "2018-09-27T12:00:00Z",
+    },
     "@context": [
         "https://raw.githubusercontent.com/smart-data-models/data-models/master/context.jsonld",
         "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
@@ -265,8 +275,6 @@ ngsi_template_emissionobserved = {
         "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld",
     ],
 }
-
-
 
 
 traffic_sensor_locations = [
