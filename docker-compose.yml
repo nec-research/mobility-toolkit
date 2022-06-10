@@ -71,8 +71,11 @@ services:
       - kafka
   ngsildmap:
     image: scorpiobroker/ngsildmap:0.0.1
+    restart: on-failure:10
     ports:
       - 8050:8050
+    depends_on:
+      - scorpio
     environment:
       - DEFAULT_HOST=http://scorpio:9090
       - SCALEUNITS=Kg

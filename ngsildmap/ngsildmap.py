@@ -89,11 +89,11 @@ defaultHost=os.getenv('DEFAULT_HOST', 'http://192.168.42.226:9090')
 defaultLimit=os.getenv('DEFAULT_LIMIT', 1000)
 defaultAtContext=os.getenv('DEFAULT_AT_CONTEXT', 'https://raw.githubusercontent.com/smart-data-models/data-models/master/context.jsonld')
 defaultEntityTypeAttributeCombos=os.getenv('DEFAULT_TYPE_ATTRS_COMBOS', 'EmissionObserved;co2')
-defaultRange=os.getenv('DEFAULT_RANGE', 3600*24)
+defaultRange=int(os.getenv('DEFAULT_RANGE', 3600*24))
 defaultMins=os.getenv('MINSCALES', '0,0').split(',')
 defaultMaxs=os.getenv('MAXSCALES', '30,100').split(',')
 defaultScaleUnits=os.getenv('SCALEUNITS', 'g,m/s^2').split(',')
-defaultPort=os.getenv('MAP_PORT', 8050)
+defaultPort=int(os.getenv('MAP_PORT', 8050))
 
 colorScales=getColorScales()
 initialBoundMinLat = 999999999999
