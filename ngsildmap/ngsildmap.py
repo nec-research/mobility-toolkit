@@ -177,10 +177,10 @@ def initialMapSetup(app, entities, entityType):
   for attrib in attribs:
     clearedGeoJson = clearGeoJson(entities, attrib)
     if clearedGeoJson==None:
-      continue
+      geobuf = None
+    else:
+      geobuf = dlx.geojson_to_geobuf(clearedGeoJson)
     minMax = [int(defaultMins[count]), int(defaultMaxs[count])]
-    
-    geobuf = dlx.geojson_to_geobuf(clearedGeoJson)
     colorscale = colorScales[count]
     colorbar = dl.Colorbar(colorscale=colorscale, width=20, height=150, min=minMax[0], max=minMax[1], unit=defaultScaleUnits[count])
     count = count + 1
