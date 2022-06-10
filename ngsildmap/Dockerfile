@@ -2,8 +2,7 @@
 FROM python:3
 ENV PYTHONUNBUFFERED=1
 WORKDIR /map
-COPY requirements.txt /map/
-RUN pip install -r requirements.txt
-COPY . /map/
-CMD python ngsildmap.py
 
+COPY ngsildmap/* /map/
+RUN pip install -r requirements.txt
+CMD python ngsildmap.py

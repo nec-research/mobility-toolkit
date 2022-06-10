@@ -2,6 +2,7 @@ import argparse
 import copy
 import enum
 import json
+import sys
 import logging
 import time
 import uuid
@@ -17,8 +18,8 @@ import pandas as pd
 import requests
 from transport_co2 import estimate_co2
 
-from model import ngsi_template_section_observed
-from utils import compute_carbon_footprint, translate_transport_mode
+from mtk_common.model import ngsi_template_section_observed
+from mtk_common.utils import compute_carbon_footprint, translate_transport_mode
 
 
 def pandas_compute_carbon_footprint(x):
@@ -120,15 +121,23 @@ if __name__ == "__main__":
         default=3600,
         help="Poll intervall in seconds",
     )
-
     parser.add_argument(
-        "--logs",
-        dest="logs",
+        "--logging_folder",
+        dest="logging_folder",
         type=str,
         required=False,
-        default="./logs",
-        help="Logs folder",
+        default="",
+        help="Logging folder",
     )
+    parser.add_argument(
+        "--logging_level",
+        dest="logging_level",
+        type=int,
+        required=False,
+        default=20,
+        help="Logging level: 10|20|30|40|50",
+    )
+
     parser.add_argument(
         "--dburl",
         dest="dburl",
@@ -137,9 +146,29 @@ if __name__ == "__main__":
         default="db",
         help="Hostname of the database",
     )
+
     args = parser.parse_args()
-    print(str(args))
-    print(str(args.dburl))
+
+    LOGGER = logging.getLogger("emission_adapter")
+    LOGGER.setLevel(args.logging_level)
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+    if args.logging_folder:
+        Path(args.logging_folder).mkdir(parents=True, exist_ok=True)
+        fh = logging.FileHandler(args.logging_folder + "/emission_adapter.log")
+        fh.setFormatter(formatter)
+        fh.setLevel(args.logging_level)
+        LOGGER.addHandler(fh)
+        LOGGER.info("Logging Folder: %s", args.logging_folder)
+    else:
+        sh = logging.StreamHandler(sys.stdout)
+        sh.setFormatter(formatter)
+        sh.setLevel(args.logging_level)
+        LOGGER.addHandler(sh)
+
+    LOGGER.info("Emission Adapter starting...")
+
     conf = {'timeseries': {'url': args.dburl, 'result_limit': 250000}}
     with open('./conf/storage/db.conf.sample', 'w') as f:
 #      print(str(f.readLines()))
@@ -147,17 +176,6 @@ if __name__ == "__main__":
     import emission.core.get_database as edb
     import emission.storage.timeseries.abstract_timeseries as esta
     import emission.storage.timeseries.timequery as estt
-    Path(args.logs).mkdir(parents=True, exist_ok=True)
-    LOGGER = logging.getLogger("emission_ngsild_adapter")
-    LOGGER.setLevel(logging.DEBUG)
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
-    fh = logging.FileHandler(args.logs + "/emission_ngsild_adapter.log")
-    fh.setFormatter(formatter)
-    fh.setLevel(logging.DEBUG)
-    LOGGER.addHandler(fh)
-    LOGGER.info("Logs Folder: %s", args.logs)
     LOGGER.info("Waiting for emission server to come up...")
     for i in range(60):
         time.sleep(1)

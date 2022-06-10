@@ -1,0 +1,58 @@
+version: '3.8'
+services:
+  green_transport_twin:
+    build:
+      context: .
+      dockerfile: ./green_transport_twin/Dockerfile
+    environment:
+      URL: http://scorpio:9090
+      INTERVAL: 600
+      LOGGING_LEVEL: 10
+      SIMULATE: 0
+    restart: on-failure
+  mdm_adapter:
+    build:
+      context: .
+      dockerfile: ./mdm_adapter/Dockerfile
+    environment:
+      INTERVAL: 60
+      URL: http://scorpio:9090
+      LOGGING_LEVEL: 10
+      SUBSCRIPTION_ID: urn:sub:test1
+      P12_CERT: /something/
+      P12_PASS: pass
+    restart: on-failure
+  ngsiv2_adapter: 
+    build:
+      context: .
+      dockerfile: ./ngsiv2_adapter/Dockerfile
+    environment:
+      INTERVAL: 600
+      URL: http://scorpio:9090
+      CLIENT_ID: client_id
+      CLIENT_SECRET: client_secret
+      USERNAME: username
+      PASSWORD: password
+      NGSIV2_URL: ngsiv2_url
+      OAUTH2_TOKEN_URL: oauth2_token_url
+    restart: on-failure
+  emission_adapter: 
+    build:
+      context: .
+      dockerfile: ./emission_adapter/Dockerfile
+    environment:
+      INTERVAL: 900
+      URL: http://scorpio:9090
+      DB_URL: db
+    restart: on-failure
+  ngsildmap:
+    build:
+      context: .
+      dockerfile: ./ngsildmap/Dockerfile
+    environment:
+      DEFAULT_HOST: http://scorpio:9090
+      SCALEUNITS: Kg
+      SCALES: blue;green;purple;brown;brown;brown
+      DEFAULT_TYPE_ATTRS_COMBOS: EmissionObserved;co2
+      DEFAULT_AT_CONTEXT: https://raw.githubusercontent.com/smart-data-models/data-models/master/context.jsonld
+    restart: on-failure

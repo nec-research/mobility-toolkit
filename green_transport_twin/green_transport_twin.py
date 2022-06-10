@@ -13,11 +13,19 @@ from pathlib import Path
 from random import randrange, uniform
 
 import requests
-
-from model import (ngsi_template_emissionobserved, ngsi_template_vehicle,
-                   traffic_sensor_locations, transport_modes_model)
-from utils import (compute_carbon_footprint, get_request, get_transport_mode,
-                   post_payloads, translate_transport_mode)
+from mtk_common.model import (
+    ngsi_template_emissionobserved,
+    ngsi_template_vehicle,
+    traffic_sensor_locations,
+    transport_modes_model,
+)
+from mtk_common.utils import (
+    compute_carbon_footprint,
+    get_request,
+    get_transport_mode,
+    post_payloads,
+    translate_transport_mode,
+)
 
 
 class GreenTransportTwin(object):
@@ -486,12 +494,20 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--logs",
-        dest="logs",
+        "--logging_folder",
+        dest="logging_folder",
         type=str,
         required=False,
-        default="./logs",
-        help="Logs folder",
+        default="",
+        help="Logging folder",
+    )
+    parser.add_argument(
+        "--logging_level",
+        dest="logging_level",
+        type=int,
+        required=False,
+        default=20,
+        help="Logging level: 10|20|30|40|50",
     )
 
     parser.add_argument(
@@ -505,18 +521,25 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    Path(args.logs).mkdir(parents=True, exist_ok=True)
     LOGGER = logging.getLogger("green_transport_twin")
-    LOGGER.setLevel(logging.DEBUG)
+    LOGGER.setLevel(args.logging_level)
     formatter = logging.Formatter(
         "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
-    fh = logging.FileHandler(args.logs + "/green_transport_twin.log")
-    fh.setFormatter(formatter)
-    fh.setLevel(logging.DEBUG)
-    LOGGER.addHandler(fh)
-    LOGGER.info("Logs Folder: %s", args.logs)
-
+    if args.logging_folder:
+        Path(args.logging_folder).mkdir(parents=True, exist_ok=True)
+        fh = logging.FileHandler(args.logging_folder + "/green_transport_twin.log")
+        fh.setFormatter(formatter)
+        fh.setLevel(args.logging_level)
+        LOGGER.addHandler(fh)
+        LOGGER.info("Logging Folder: %s", args.logging_folder)
+    else:
+        sh = logging.StreamHandler(sys.stdout)
+        sh.setFormatter(formatter)
+        sh.setLevel(args.logging_level)
+        LOGGER.addHandler(sh)
+    
+    LOGGER.info("Green Transport Twin starting...")
     green_transport_twin = GreenTransportTwin(
         broker_url=args.url,
         poll_intervall=args.intervall,

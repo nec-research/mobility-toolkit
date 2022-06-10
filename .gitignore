@@ -5,3 +5,6 @@ __pycache__
 *.p12
 *_ignoreme*
 .ipynb_checkpoints
+tags
+*_testing*
+*.egg-info

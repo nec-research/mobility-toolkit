@@ -1,10 +1,12 @@
 import argparse
 import json
 import logging
+import sys
 import time
 from pathlib import Path
 
 import requests
+from mtk_common.utils import post_payloads
 
 
 def get_token(token_url, payload):
@@ -28,7 +30,7 @@ def transform2ld(entity):
     for k, v in entity.items():
         if isinstance(v, dict):
             if "type" in v and "value" in v:
-                if v["type"] in ["Text", "Number", "DateTime"]:
+                if v["type"] in ["Text", "Number", "DateTime", "StructuredValue"]:
                     vn = {
                         "type": "Property",
                         "value": v["value"],
@@ -51,15 +53,6 @@ def transform2ld(entity):
         del entity["metadata"]
 
 
-def post_payloads(payloads, broker_url):
-    url = broker_url + "/ngsi-ld/v1/entityOperations/upsert"
-    headers = {"Content-Type": "application/ld+json"}
-    r = requests.post(url, data=json.dumps(payloads), headers=headers)
-    if r.status_code != 201:
-        LOGGER.warning("request failed: %s %s" % (r.status_code, r.text))
-    LOGGER.info("Pushed %s payloads", len(payloads))
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Start NGSIv2 NGSI-LD Adapter")
     parser.add_argument(
@@ -80,12 +73,20 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--logs",
-        dest="logs",
+        "--logging_folder",
+        dest="logging_folder",
         type=str,
         required=False,
-        default="./logs",
-        help="Logs folder",
+        default="",
+        help="Logging folder",
+    )
+    parser.add_argument(
+        "--logging_level",
+        dest="logging_level",
+        type=int,
+        required=False,
+        default=20,
+        help="Logging level: 10|20|30|40|50",
     )
 
     parser.add_argument(
@@ -133,22 +134,28 @@ if __name__ == "__main__":
         required=True,
         help="Password of NGSIv2 subscription",
     )
-
     args = parser.parse_args()
-    Path(args.logs).mkdir(parents=True, exist_ok=True)
-    LOGGER = logging.getLogger("v2_ngsild_adapter")
-    LOGGER.setLevel(logging.DEBUG)
+
+    LOGGER = logging.getLogger("ngsiv2_adapter")
+    LOGGER.setLevel(args.logging_level)
     formatter = logging.Formatter(
         "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
-    fh = logging.FileHandler(args.logs + "/v2_ngsild_adapter.log")
-    fh.setFormatter(formatter)
-    fh.setLevel(logging.DEBUG)
-    LOGGER.addHandler(fh)
-    LOGGER.info("NGSIv2 adapter started")
-    LOGGER.info("Logs Folder: %s", args.logs)
-    print("NGSIv2 adapter started")
-    print("Log File: %s" % (args.logs + "/v2_ngsild_adapter.log"))
+    if args.logging_folder:
+        Path(args.logging_folder).mkdir(parents=True, exist_ok=True)
+        fh = logging.FileHandler(args.logging_folder + "/ngsiv2_adapter.log")
+        fh.setFormatter(formatter)
+        fh.setLevel(args.logging_level)
+        LOGGER.addHandler(fh)
+        LOGGER.info("Logging Folder: %s", args.logging_folder)
+    else:
+        sh = logging.StreamHandler(sys.stdout)
+        sh.setFormatter(formatter)
+        sh.setLevel(args.logging_level)
+        LOGGER.addHandler(sh)
+
+    LOGGER.info("NGSIv2 Adapter starting...")
+
     payload = {
         "grant_type": "password",
         "client_id": args.client_id,
@@ -192,11 +199,13 @@ if __name__ == "__main__":
                 # skip entities which have not been changed
                 if entity["dateObserved"]["value"] == cache[entity["id"]]:
                     continue
+            LOGGER.debug("NGSIv2 entity %s", entity)
             transform2ld(entity)
+            LOGGER.debug("NGSI-LD entity %s", entity)
             payloads.append(entity)
             cache[entity["id"]] = entity["dateObserved"]["value"]
         if payloads:
-            post_payloads(payloads, broker_url=args.url)
+            post_payloads(payloads=payloads, broker_url=args.url, logger=LOGGER)
             LOGGER.info("Pushed new v2 data to NGSI-LD")
         else:
             LOGGER.warning("No new data available, maybe increase polling intervall")

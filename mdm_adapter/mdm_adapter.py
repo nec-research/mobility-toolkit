@@ -5,6 +5,7 @@ import datetime
 import enum
 import json
 import logging
+import sys
 import time
 import uuid
 from math import asin, cos, radians, sin, sqrt
@@ -15,10 +16,10 @@ import requests
 import xmltodict
 from requests_pkcs12 import get, post
 
-from model import (ngsi_template_emissionobserved,
+from mtk_common.model import (ngsi_template_emissionobserved,
                    ngsi_template_trafficflow_observed, ngsi_template_vehicle,
                    traffic_sensor_locations, transport_modes_model)
-from utils import compute_carbon_footprint, translate_transport_mode
+from mtk_common.utils import compute_carbon_footprint, translate_transport_mode, post_payloads
 
 ENTITY_TYPE = "TrafficFlowObserved"
 # ENTITY_TYPE = "Vehicle"
@@ -105,18 +106,6 @@ def create_payloads(parsed, logger):
     return payloads
 
 
-def post_payloads(payloads, broker_url, logger):
-    logger.debug(payloads)
-    url = broker_url + "/ngsi-ld/v1/entityOperations/upsert"
-    print(url)
-    headers = {"Content-Type": "application/ld+json"}
-    r = requests.post(url, data=json.dumps(payloads), headers=headers)
-    if r.status_code not in [201, 204, 207]:
-        logger.warning("request failed: %s", r.status_code)
-        logger.warning(r.text)
-    else:
-        logger.info("Pushed %s payloads", len(payloads))
-
 
 def createTrafficFlowObserved(
     description,
@@ -167,7 +156,7 @@ def createTrafficFlowObserved(
     payload["occupancy"]["value"] = occupancy
 
     if entity_id:
-        payload["id"] = "urn:ngsi-ld:TrafficFlowObserved:"+ entity_id
+        payload["id"] = "urn:ngsi-ld:TrafficFlowObserved:" + entity_id
     else:
         payload["id"] = "urn:ngsi-ld:TrafficFlowObserved:" + str(uuid.uuid4())
     payload["vehicleType"]["value"] = translate_transport_mode(vehicleType)
@@ -217,12 +206,20 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--logs",
-        dest="logs",
+        "--logging_folder",
+        dest="logging_folder",
         type=str,
         required=False,
-        default="./logs",
-        help="Logs folder",
+        default="",
+        help="Logging folder",
+    )
+    parser.add_argument(
+        "--logging_level",
+        dest="logging_level",
+        type=int,
+        required=False,
+        default=20,
+        help="Logging level: 10|20|30|40|50",
     )
 
     parser.add_argument(
@@ -250,17 +247,26 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    Path(args.logs).mkdir(parents=True, exist_ok=True)
-    LOGGER = logging.getLogger("mdm_ngsild_adapter")
-    LOGGER.setLevel(logging.DEBUG)
+
+    LOGGER = logging.getLogger("mdm_adapter")
+    LOGGER.setLevel(args.logging_level)
     formatter = logging.Formatter(
         "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
-    fh = logging.FileHandler(args.logs + "/mdm_ngsild_adapter.log")
-    fh.setFormatter(formatter)
-    fh.setLevel(logging.DEBUG)
-    LOGGER.addHandler(fh)
-    LOGGER.info("Logs Folder: %s", args.logs)
+    if args.logging_folder:
+        Path(args.logging_folder).mkdir(parents=True, exist_ok=True)
+        fh = logging.FileHandler(args.logging_folder + "/mdm_adapter.log")
+        fh.setFormatter(formatter)
+        fh.setLevel(args.logging_level)
+        LOGGER.addHandler(fh)
+        LOGGER.info("Logging Folder: %s", args.logging_folder)
+    else:
+        sh = logging.StreamHandler(sys.stdout)
+        sh.setFormatter(formatter)
+        sh.setLevel(args.logging_level)
+        LOGGER.addHandler(sh)
+
+    LOGGER.info("MDM Adapter starting...")
     url = (
         "https://broker.mdm-portal.de/BASt-MDM-Interface/srv/container/v1.0?subscriptionID="
         + args.sub_id
@@ -273,15 +279,20 @@ if __name__ == "__main__":
         for i in range(int(sleep_time)):
             time.sleep(1)
         t0 = time.time()
-        response = get(
-            url,
-            headers={"Content-Type": "application/json"},
-            # verify=False,
-            pkcs12_filename=pkcs12_filename,
-            pkcs12_password=pkcs12_password,
-        )
-        if response.status_code != 200:
-            LOGGER.warning("request failed: %s", r.status_code)
+        try:
+            response = get(
+                url,
+                headers={"Content-Type": "application/json"},
+                # verify=False,
+                pkcs12_filename=pkcs12_filename,
+                pkcs12_password=pkcs12_password,
+            )
+            if response.status_code != 200:
+                LOGGER.warning("request failed: %s", response.status_code)
+                sleep_time = args.intervall - (time.time() - t0)
+                continue
+        except Exception as e:
+            LOGGER.error("Something went wrong, maybe server down: %s", e)
             sleep_time = args.intervall - (time.time() - t0)
             continue
         dict_data = xmltodict.parse(response.content)
