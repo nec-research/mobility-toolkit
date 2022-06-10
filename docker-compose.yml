@@ -1,31 +1,52 @@
 version: '3'
 
 services:
-  mtk: 
-    image: scorpiobroker/mtk:latest
+  green_transport_twin:
+    image: scorpiobroker/green_transport_twin:latest
     environment:
       URL: http://scorpio:9090
       INTERVAL: 600
+      LOGGING_LEVEL: 10
+      SIMULATE: 0
+    restart: on-failure
     depends_on:
       - scorpio
-  emission_ngsild: 
+  mdm_adapter:
+    image: scorpiobroker/mdm_adapter
+    environment:
+      INTERVAL: 60
+      URL: http://scorpio:9090
+      LOGGING_LEVEL: 10
+      SUBSCRIPTION_ID: urn:sub:test1
+      P12_CERT: /something/
+      P12_PASS: pass
+    restart: on-failure
     depends_on:
-      - db
       - scorpio
-    image: scorpiobroker/emissionadapter
+  ngsiv2_adapter: 
+    image: scorpiobroker/ngsiv2_adapter
+    environment:
+      INTERVAL: 600
+      URL: http://scorpio:9090
+      CLIENT_ID: client_id
+      CLIENT_SECRET: client_secret
+      USERNAME: username
+      PASSWORD: password
+      NGSIV2_URL: ngsiv2_url
+      OAUTH2_TOKEN_URL: oauth2_token_url
+    restart: on-failure
+    depends_on:
+      - scorpio
+  emission_adapter: 
+    image: scorpiobroker/emission_adapter
     environment:
       INTERVAL: 900
       URL: http://scorpio:9090
       DB_URL: db
     restart: on-failure
-  mdmadapter:
-    image: scorpiobroker/mdmadapter
-    environment:
-      INTERVAL: 60
-      URL: http://scorpio:9090
-      SUBSCRIPTION_ID: urn:sub:test1
-      P12_CERT: /something/
-      P12_PASS: pass
+    depends_on:
+      - db
+      - scorpio
   zookeeper:
     image: zookeeper
     ports:
