@@ -8,7 +8,6 @@ import os
 from threading import Thread
 import dash_leaflet as dl
 import dash_leaflet.express as dlx
-import pandas as pd
 from dash_extensions.javascript import assign
 from dash import Dash, html, dcc
 from dash.dependencies import Input, Output
