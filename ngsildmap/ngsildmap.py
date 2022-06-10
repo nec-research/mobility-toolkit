@@ -96,8 +96,10 @@ defaultMaxs=os.getenv('MAXSCALES', '50,100').split(',')
 defaultScaleUnits=os.getenv('SCALEUNITS', 'g,m/s^2').split(',')
 
 colorScales=getColorScales()
-
-
+initialBoundMinLat = 999999999999
+initialBoundMaxLat = -999999999999
+initialBoundMinLon = 999999999999
+initialBoundMaxLon = -999999999999
 
 
 chroma = "https://cdnjs.cloudflare.com/ajax/libs/chroma-js/2.1.0/chroma.min.js"  # js lib used for colors
@@ -125,6 +127,21 @@ def clearGeoJson(entities, attrib):
     tooltip = getToolTip(entityId, feature['properties'])
     value = feature['properties'][attrib]['value']
     feature['properties'] = {attrib: value, 'tooltip': tooltip}
+    if 'geometry' in feature.keys():
+      global initialBoundMinLat
+      global initialBoundMaxLat
+      global initialBoundMinLon
+      global initialBoundMaxLon
+      lon = feature['geometry']['coordinates'][0]
+      lat = feature['geometry']['coordinates'][1]
+      if lat > initialBoundMaxLat:
+        initialBoundMaxLat = lat
+      if lat < initialBoundMinLat:
+        initialBoundMinLat = lat
+      if lon > initialBoundMaxLon:
+        initialBoundMaxLon = lon
+      if lon < initialBoundMinLon:
+        initialBoundMinLon = lon
   print(json.dumps(entities, indent=4))
   return entities
 def leafCallback(n, entityTypeAttrib):
@@ -187,6 +204,10 @@ def initialMapSetup(app, entities, entityType):
 
 def initialSetup(app):
   global type2Attribs
+  global initialBoundMinLat
+  global initialBoundMaxLat
+  global initialBoundMinLon
+  global initialBoundMaxLon
   mapLayers = []
   callbackTuples = []
   for entityType in type2Attribs.keys():
@@ -199,8 +220,12 @@ def initialSetup(app):
             interval=defaultPollTime*1000, # in milliseconds
             n_intervals=0
         )
+  print(str(initialBoundMinLat))
+  print(str(initialBoundMaxLat))
+  print(str(initialBoundMinLon))
+  print(str(initialBoundMaxLon))
   app.layout = html.Div([
-    dl.Map(mapLayers, style={'width': '100%', 'height': '50vh', 'margin': "auto", "display": "block", "position": "relative"}, id='map'), interval, html.Div(id="capital")])
+    dl.Map(mapLayers, bounds=[[initialBoundMinLat, initialBoundMinLon],[initialBoundMaxLat, initialBoundMaxLon]],style={'width': '100%', 'height': '80vh', 'margin': "auto", "display": "block", "position": "relative"}, id='map'), interval, html.Div(id="capital")])
   for callbackTuple in callbackTuples:
     app.callback(Output(callbackTuple['output'][0], callbackTuple['output'][1]), [Input(callbackTuple['input'][0][0], callbackTuple['input'][0][1]),Input(callbackTuple['input'][1][0], callbackTuple['input'][1][1])])(leafCallback)
 # Create the app.
