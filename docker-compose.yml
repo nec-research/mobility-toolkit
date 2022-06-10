@@ -26,26 +26,23 @@ services:
       SUBSCRIPTION_ID: urn:sub:test1
       P12_CERT: /something/
       P12_PASS: pass
-  grafana:
-    image: grafana/grafana:7.3.1
-    user: "1000"
-    ports:
-      - "3000:3000"
-    volumes:
-      - "./grafana-data:/var/lib/grafana"
   zookeeper:
     image: zookeeper
     ports:
       - "2181"
+    logging:
+      driver: none
   kafka:
-    image: wurstmeister/kafka
-    hostname: kafka
+    image: bitnami/kafka
     ports:
       - "9092"
     environment:
       KAFKA_ADVERTISED_HOST_NAME: kafka
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_ADVERTISED_PORT: 9092
+      KAFKA_LOG_RETENTION_MS: 10000
+      KAFKA_LOG_RETENTION_CHECK_INTERVAL_MS: 5000
+      ALLOW_PLAINTEXT_LISTENER: "yes"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
@@ -53,25 +50,35 @@ services:
     logging:
       driver: none
   postgres:
-    image: mdillon/postgis
+    image: postgis/postgis
     ports:
       - "5432"
     environment:
       POSTGRES_USER: ngb
       POSTGRES_PASSWORD: ngb
       POSTGRES_DB: ngb
+    logging:
+      driver: none
+#Add an empty folder here for persistance
+#    volumes:
+#      - /custom/mount:/var/lib/postgresql/data
   scorpio:
     image: scorpiobroker/scorpio:scorpio-aaio-no-eureka_latest
-    hostname: scorpio
-    environment:
-      spring_args: --defaultLimit=5000 --maxLimit=50000
     ports:
       - "1996:9090"
     depends_on:
-      - kafka
       - postgres
-    logging:
-      driver: none
+      - kafka
+  ngsildmap:
+    image: scorpiobroker/ngsildmap:0.0.1
+    ports:
+      - 8050:8050
+    environment:
+      - DEFAULT_HOST=http://scorpio:9090
+      - SCALEUNITS=Kg
+      - SCALES=blue;green;purple;brown;brown;brown
+      - DEFAULT_TYPE_ATTRS_COMBOS=EmissionObserved;co2
+      - DEFAULT_AT_CONTEXT=https://raw.githubusercontent.com/smart-data-models/data-models/master/context.jsonld
   web-server:
     image: emission/e-mission-server.dev.server-only:latest
     depends_on:
