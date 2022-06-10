@@ -1,0 +1,5 @@
+schedule
+dash==2.0.0
+dash-leaflet==0.1.23
+dash-extensions==0.0.65
+Werkzeug==2.0.0
