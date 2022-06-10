@@ -91,8 +91,9 @@ defaultAtContext=os.getenv('DEFAULT_AT_CONTEXT', 'https://raw.githubusercontent.
 defaultEntityTypeAttributeCombos=os.getenv('DEFAULT_TYPE_ATTRS_COMBOS', 'EmissionObserved;co2')
 defaultRange=os.getenv('DEFAULT_RANGE', 3600*24)
 defaultMins=os.getenv('MINSCALES', '0,0').split(',')
-defaultMaxs=os.getenv('MAXSCALES', '50,100').split(',')
+defaultMaxs=os.getenv('MAXSCALES', '30,100').split(',')
 defaultScaleUnits=os.getenv('SCALEUNITS', 'g,m/s^2').split(',')
+defaultPort=os.getenv('MAP_PORT', 8050)
 
 colorScales=getColorScales()
 initialBoundMinLat = 999999999999
@@ -238,6 +239,6 @@ initialSetup(app)
 
 
 if __name__ == '__main__':
-    app.run_server()
+    app.run_server(host='0.0.0.0', port=defaultPort)
 
 
