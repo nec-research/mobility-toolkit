@@ -142,13 +142,13 @@ def clearGeoJson(entities, attrib):
         initialBoundMaxLon = lon
       if lon < initialBoundMinLon:
         initialBoundMinLon = lon
-  print(json.dumps(entities, indent=4))
+  #print(json.dumps(entities, indent=4))
   return entities
 def leafCallback(n, entityTypeAttrib):
   splitted = entityTypeAttrib.split(';')
   global defaultRange  
   date = datetime.datetime.fromtimestamp(time.time() - defaultRange).strftime('%Y-%m-%dT%H:%M:%SZ')
-  print(defaultHost + '/ngsi-ld/v1/entities?type='+splitted[0]+'&limit=' + str(defaultLimit) + '&q=' + splitted[1] + '.observedAt>=' + date)
+  #print(defaultHost + '/ngsi-ld/v1/entities?type='+splitted[0]+'&limit=' + str(defaultLimit) + '&q=' + splitted[1] + '.observedAt>=' + date)
   entities = requests.get(defaultHost + '/ngsi-ld/v1/entities?type='+splitted[0]+'&limit=' + str(defaultLimit) + '&q=' + splitted[1] + '.observedAt>=' + date, headers = {'Link':  '<' + defaultAtContext + '>; rel="http://www.w3.org/ns/json-ld#context"; type="application/ld+json"', 'Accept': 'application/geo+json'}).json()
   clearedGeoJson = clearGeoJson(entities, splitted[1])
   if clearedGeoJson==None:
@@ -210,20 +210,23 @@ def initialSetup(app):
   global initialBoundMaxLon
   mapLayers = []
   callbackTuples = []
-  for entityType in type2Attribs.keys():
-    mapSet = initialMapSetup(app, requests.get(defaultHost + '/ngsi-ld/v1/entities?type=' + entityType + '&limit=' + str(defaultLimit), headers = {'Link':  '<' + defaultAtContext + '>; rel="http://www.w3.org/ns/json-ld#context"; type="application/ld+json"', 'Accept': 'application/geo+json'}).json(), entityType);
-    mapLayers = mapLayers + mapSet[0]
-    callbackTuples.append(mapSet[1])
+  global defaultRange  
+  date = datetime.datetime.fromtimestamp(time.time() - defaultRange).strftime('%Y-%m-%dT%H:%M:%SZ')
+  for entityType, attribs in type2Attribs.items():
+    for attrib in attribs:
+      mapSet = initialMapSetup(app, requests.get(defaultHost + '/ngsi-ld/v1/entities?type=' + entityType + '&q=' + attrib + '.observedAt>=' + date +'&limit=' + str(defaultLimit), headers = {'Link':  '<' + defaultAtContext + '>; rel="http://www.w3.org/ns/json-ld#context"; type="application/ld+json"', 'Accept': 'application/geo+json'}).json(), entityType);
+      mapLayers = mapLayers + mapSet[0]
+      callbackTuples.append(mapSet[1])
   mapLayers.append(dl.TileLayer())
   interval = dcc.Interval(
             id='interval-component',
             interval=defaultPollTime*1000, # in milliseconds
             n_intervals=0
         )
-  print(str(initialBoundMinLat))
-  print(str(initialBoundMaxLat))
-  print(str(initialBoundMinLon))
-  print(str(initialBoundMaxLon))
+  #print(str(initialBoundMinLat))
+  #print(str(initialBoundMaxLat))
+  #print(str(initialBoundMinLon))
+  #print(str(initialBoundMaxLon))
   app.layout = html.Div([
     dl.Map(mapLayers, bounds=[[initialBoundMinLat, initialBoundMinLon],[initialBoundMaxLat, initialBoundMaxLon]],style={'width': '100%', 'height': '80vh', 'margin': "auto", "display": "block", "position": "relative"}, id='map'), interval, html.Div(id="capital")])
   for callbackTuple in callbackTuples:
