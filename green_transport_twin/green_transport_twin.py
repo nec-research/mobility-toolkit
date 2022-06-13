@@ -13,19 +13,12 @@ from pathlib import Path
 from random import randrange, uniform
 
 import requests
-from mtk_common.model import (
-    ngsi_template_emissionobserved,
-    ngsi_template_vehicle,
-    traffic_sensor_locations,
-    transport_modes_model,
-)
-from mtk_common.utils import (
-    compute_carbon_footprint,
-    get_request,
-    get_transport_mode,
-    post_payloads,
-    translate_transport_mode,
-)
+from mtk_common.model import (ngsi_template_emissionobserved,
+                              ngsi_template_vehicle, traffic_sensor_locations,
+                              transport_modes_model)
+from mtk_common.utils import (compute_carbon_footprint, get_request,
+                              get_transport_mode, post_payloads,
+                              translate_transport_mode)
 
 
 class GreenTransportTwin(object):
@@ -469,7 +462,7 @@ class GreenTransportTwin(object):
             emission_observed["location"]["value"]["coordinates"] = coordinates_sim
             emission_observed["co2"]["observedAt"] = observedAt
             emission_observed["co2"]["value"] = co2
-            emission_observed["abstractionLevel"] = {"type": "Property", "value": 17}
+            # emission_observed["abstractionLevel"] = {"type": "Property", "value": 17}
             payloads.append(emission_observed)
         post_payloads(payloads=payloads, broker_url=self.broker_url, logger=self.logger)
 
@@ -538,7 +531,7 @@ if __name__ == "__main__":
         sh.setFormatter(formatter)
         sh.setLevel(args.logging_level)
         LOGGER.addHandler(sh)
-    
+
     LOGGER.info("Green Transport Twin starting...")
     green_transport_twin = GreenTransportTwin(
         broker_url=args.url,
