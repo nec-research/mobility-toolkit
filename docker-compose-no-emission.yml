@@ -1,0 +1,95 @@
+version: '3'
+
+services:
+  green_transport_twin:
+    image: scorpiobroker/green_transport_twin:latest
+    environment:
+      URL: http://scorpio:9090
+      INTERVAL: 600
+      LOGGING_LEVEL: 10
+      SIMULATE: 0
+    restart: on-failure
+    depends_on:
+      - scorpio
+  mdm_adapter:
+    image: scorpiobroker/mdm_adapter
+    environment:
+      INTERVAL: 60
+      URL: http://scorpio:9090
+      LOGGING_LEVEL: 10
+      SUBSCRIPTION_ID: urn:sub:test1
+      P12_CERT: /something/
+      P12_PASS: pass
+    restart: on-failure
+    depends_on:
+      - scorpio
+  ngsiv2_adapter: 
+    image: scorpiobroker/ngsiv2_adapter
+    environment:
+      INTERVAL: 600
+      URL: http://scorpio:9090
+      CLIENT_ID: client_id
+      CLIENT_SECRET: client_secret
+      USERNAME: username
+      PASSWORD: password
+      NGSIV2_URL: ngsiv2_url
+      OAUTH2_TOKEN_URL: oauth2_token_url
+    restart: on-failure
+    depends_on:
+      - scorpio
+  zookeeper:
+    image: zookeeper
+    ports:
+      - "2181"
+    logging:
+      driver: none
+  kafka:
+    image: bitnami/kafka
+    ports:
+      - "9092"
+    environment:
+      KAFKA_ADVERTISED_HOST_NAME: kafka
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_PORT: 9092
+      KAFKA_LOG_RETENTION_MS: 10000
+      KAFKA_LOG_RETENTION_CHECK_INTERVAL_MS: 5000
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - zookeeper
+    logging:
+      driver: none
+  postgres:
+    image: postgis/postgis
+    ports:
+      - "5432"
+    environment:
+      POSTGRES_USER: ngb
+      POSTGRES_PASSWORD: ngb
+      POSTGRES_DB: ngb
+    logging:
+      driver: none
+#Add an empty folder here for persistance
+#    volumes:
+#      - /custom/mount:/var/lib/postgresql/data
+  scorpio:
+    image: scorpiobroker/scorpio:scorpio-aaio-no-eureka_latest
+    ports:
+      - "1996:9090"
+    depends_on:
+      - postgres
+      - kafka
+  ngsildmap:
+    image: scorpiobroker/ngsildmap:0.0.1
+    restart: on-failure:10
+    ports:
+      - 8050:8050
+    depends_on:
+      - scorpio
+    environment:
+      - DEFAULT_HOST=http://scorpio:9090
+      - SCALEUNITS=Kg
+      - SCALES=blue;green;purple;brown;brown;brown
+      - DEFAULT_TYPE_ATTRS_COMBOS=EmissionObserved;co2
+      - DEFAULT_AT_CONTEXT=https://raw.githubusercontent.com/smart-data-models/data-models/master/context.jsonld
