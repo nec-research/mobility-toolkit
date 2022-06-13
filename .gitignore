@@ -10,3 +10,4 @@ tags
 *.egg-info
 log
 logs
+*.pyc
