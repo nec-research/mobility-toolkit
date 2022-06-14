@@ -16,7 +16,8 @@ import requests
 from mtk_common.model import (ngsi_template_emissionobserved,
                               ngsi_template_vehicle, traffic_sensor_locations,
                               transport_modes_model)
-from mtk_common.utils import (compute_carbon_footprint, get_request,
+from mtk_common.utils import (compute_carbon_footprint, get_entities,
+                              get_request, get_temporal_entities,
                               get_transport_mode, post_payloads,
                               translate_transport_mode)
 
@@ -63,8 +64,12 @@ class GreenTransportTwin(object):
             else:
                 results = []
                 t0 = time.time()
-                vehicles = self.get_entities(
-                    entity_type="Vehicle", observedAt_property="speed"
+                vehicles = get_entities(
+                    entity_type="Vehicle",
+                    observedAt_property="speed",
+                    intervall=self.poll_intervall,
+                    url=self.broker_url,
+                    logger=self.logger,
                 )
                 if len(vehicles) > 0:
                     results = results + self.get_entity_data(vehicles)
@@ -108,8 +113,12 @@ class GreenTransportTwin(object):
         observedAt_property = "intensity"
 
         # 1. get changed entities with normal query for all metadata
-        entities_normal = self.get_entities(
-            entity_type=entity_type, observedAt_property=observedAt_property
+        entities_normal = get_entities(
+            entity_type=entity_type,
+            observedAt_property=observedAt_property,
+            url=self.broker_url,
+            intervall=self.poll_intervall,
+            logger=self.logger,
         )
         if not entities_normal:
             return []
@@ -123,7 +132,12 @@ class GreenTransportTwin(object):
             }
 
         # 2. get temporal data
-        entities_temporal = self.get_temporal_entities(entity_type=entity_type)
+        entities_temporal = get_temporal_entities(
+            entity_type=entity_type,
+            intervall=self.poll_intervall,
+            url=self.broker_url,
+            logger=self.logger,
+        )
         if not entities_temporal:
             return []
 
@@ -151,64 +165,14 @@ class GreenTransportTwin(object):
                     r["vehicleType"] = e["vehicleType"][i]
                 else:
                     self.logger.info("No vehicleType available, trying to infer")
-                    for v in ["Velo", "ECO Counter"]:
-                        if v.lower() in r["description"]["value"].lower():
+                    for va in ["Velo", "ECO Counter"]:
+                        if va.lower() in r["description"]["value"].lower():
                             r["vehicleType"] = "bicycle"
-                        if v.lower() in e["source"]["value"].lower():
+                        if va.lower() in e["source"]["value"].lower():
                             r["vehicleType"] = "bicycle"
                 results.append(r)
+                i = i +1
         return results
-
-    def get_temporal_entities(self, entity_type: str) -> list:
-        """
-        get temporal entities during poll intervall
-        """
-
-        headers = {
-            "Link": '<https://raw.githubusercontent.com/smart-data-models/data-models/master/context.jsonld>; rel="http://www.w3.org/ns/json-ld#context"; type="application/ld+json"'
-        }
-        params = {
-            "type": entity_type,
-            "timerel": "after",
-            "timeAt": (
-                datetime.datetime.now(timezone.utc)
-                - datetime.timedelta(seconds=self.poll_intervall)
-            ).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        }
-        entities_temporal = get_request(
-            url=self.broker_url + "/ngsi-ld/v1/temporal/entities/",
-            params=params,
-            headers=headers,
-            logger=self.logger,
-        )
-        return entities_temporal
-
-    def get_entities(self, entity_type: str, observedAt_property: str) -> list:
-        """
-        get entities during poll intervall
-        """
-        headers = {
-            "Link": '<https://raw.githubusercontent.com/smart-data-models/data-models/master/context.jsonld>; rel="http://www.w3.org/ns/json-ld#context"; type="application/ld+json"'
-        }
-        params = {
-            "type": entity_type,
-            "q": (
-                observedAt_property
-                + ".observedAt>="
-                + (
-                    datetime.datetime.now(timezone.utc)
-                    - datetime.timedelta(seconds=self.poll_intervall)
-                ).strftime("%Y-%m-%dT%H:%M:%SZ")
-            ),
-        }
-        entities = get_request(
-            url=self.broker_url + "/ngsi-ld/v1/entities/",
-            params=params,
-            headers=headers,
-            logger=self.logger,
-        )
-
-        return entities
 
     def simulate_vehicle_data(self) -> None:
         """

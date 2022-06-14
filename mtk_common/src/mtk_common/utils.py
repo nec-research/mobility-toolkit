@@ -1,7 +1,8 @@
 import datetime
+from datetime import timezone
 import enum
-import logging
 import json
+import logging
 
 import requests
 from transport_co2 import estimate_co2
@@ -157,13 +158,14 @@ def get_request(
             )
             return []
         entities = r.json()
-        logger.debug("Received entities%s", entities)
+        logger.debug("Received entities%s", len(entities))
         return entities
     except requests.exceptions.RequestException as e:
         logger.error(
             "Something went wrong connecting to the NGSI-LD broker. Maybe server is down."
         )
         return []
+
 
 def post_payloads(payloads: list, broker_url: str, logger: logging.Logger) -> bool:
     try:
@@ -184,6 +186,65 @@ def post_payloads(payloads: list, broker_url: str, logger: logging.Logger) -> bo
         )
         return False
 
+
+def get_temporal_entities(
+    entity_type: str, intervall: int, url: str, logger: logging.Logger
+) -> list:
+    """
+    get temporal entities during poll intervall
+    """
+
+    headers = {
+        "Link": '<https://raw.githubusercontent.com/smart-data-models/data-models/master/context.jsonld>; rel="http://www.w3.org/ns/json-ld#context"; type="application/ld+json"'
+    }
+    params = {
+        "type": entity_type,
+        "timerel": "after",
+        "timeAt": (
+            datetime.datetime.now(timezone.utc) - datetime.timedelta(seconds=intervall)
+        ).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    }
+    entities_temporal = get_request(
+        url=url + "/ngsi-ld/v1/temporal/entities/",
+        params=params,
+        headers=headers,
+        logger=logger,
+    )
+    return entities_temporal
+
+
+def get_entities(
+    entity_type: str,
+    observedAt_property: str,
+    intervall: int,
+    url: str,
+    logger: logging.Logger,
+) -> list:
+    """
+    get entities during poll intervall
+    """
+    headers = {
+        "Link": '<https://raw.githubusercontent.com/smart-data-models/data-models/master/context.jsonld>; rel="http://www.w3.org/ns/json-ld#context"; type="application/ld+json"'
+    }
+    params = {
+        "type": entity_type,
+        "q": (
+            observedAt_property
+            + ".observedAt>="
+            + (
+                datetime.datetime.now(timezone.utc)
+                - datetime.timedelta(seconds=intervall)
+            ).strftime("%Y-%m-%dT%H:%M:%SZ")
+        ),
+    }
+    entities = get_request(
+        url=url + "/ngsi-ld/v1/entities/",
+        params=params,
+        headers=headers,
+        logger=logger,
+    )
+
+    return entities
 
 
 # add context to fiware datamodel
