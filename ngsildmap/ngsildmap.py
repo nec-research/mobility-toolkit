@@ -63,6 +63,8 @@ defaultMins = os.getenv("MINSCALES", "0,0").split(",")
 defaultMaxs = os.getenv("MAXSCALES", "30,100").split(",")
 defaultScaleUnits = os.getenv("SCALEUNITS", "g,m/s^2").split(",")
 defaultPort = int(os.getenv("MAP_PORT", 8050))
+cluster = bool(os.getenv("CLUSTER", False))
+clusterRange = int(os.getenv("CLUSTER_RANGE", 50))
 
 colorScales = getColorScales()
 initialBoundMinLat = 999999999999
@@ -204,6 +206,8 @@ def getMinMax(clearedGeoJson, attrib):
 def initialMapSetup(app, entities, entityType):
     global type2Attribs
     global colorScales
+    global cluster
+    global clusterRange
     attribs = type2Attribs[entityType]
     count = 0
     mapLayers = []
@@ -240,7 +244,8 @@ def initialMapSetup(app, entities, entityType):
             format="geobuf",
             zoomToBounds=False,  # when true, zooms to bounds when data changes
             options=dict(pointToLayer=point_to_layer),  # how to draw points
-            superClusterOptions=dict(radius=50),  # adjust cluster size
+            cluster=cluster,
+            superClusterOptions=dict(radius=clusterRange),  # adjust cluster size
             hideout=dict(
                 colorProp=attrib,
                 circleOptions=dict(fillOpacity=1, stroke=False, radius=5),
