@@ -58,7 +58,10 @@ defaultAtContext = os.getenv(
 defaultEntityTypeAttributeCombos = os.getenv(
     "DEFAULT_TYPE_ATTRS_COMBOS", "EmissionObserved;co2"
 )
-defaultRange = int(os.getenv("DEFAULT_RANGE", 12 * 3600))
+defaultEntityTypeAttributeCombos = os.getenv(
+    "DEFAULT_TYPE_ATTRS_COMBOS", "TrafficFlowObserved;intensity"
+)
+defaultRange = int(os.getenv("DEFAULT_RANGE", 1 * 3600))
 defaultMins = os.getenv("MINSCALES", "0,0").split(",")
 defaultMaxs = os.getenv("MAXSCALES", "30,100").split(",")
 defaultScaleUnits = os.getenv("SCALEUNITS", "g,m/s^2").split(",")
@@ -119,6 +122,19 @@ def clearGeoJson(entities, attrib):
     return entities
 
 
+def getToolTip_temporal(entity: dict, attrib: str, i: int):
+    result = "<b>" + entity["id"] + "</b><br><b>" + entity["type"] + "</b><br>"
+    result = (
+        result + "<b> observedAt: </b>" + str(entity[attrib][i]["observedAt"]) + "<br>"
+    )
+    for k, v in entity.items():
+        if k not in ["id", "type", "location"]:
+            if len(v) <= i:  # for properties with less time stamps..
+                i = len(v) - 1
+            result = result + "<b>" + k + ": </b>" + str(v[i]["value"]) + "<br>"
+    return result
+
+
 def clearGeoJson_temporal(entities_temporal, attrib):
     features = {}
     # fix ngsi-ld bug
@@ -130,11 +146,13 @@ def clearGeoJson_temporal(entities_temporal, attrib):
     for e in entities_temporal:
         i = 0
         for v in e[attrib]:
+            tooltip = getToolTip_temporal(e, attrib, i)
             r = {}
             r["geometry"] = e["location"][i]["value"]
             r["id"] = e["id"]
             r["type"] = "Feature"
-            r["properties"] = {attrib: v["value"], "tooltip": ""}
+            r["properties"] = {attrib: v["value"], "tooltip": tooltip}
+            # tooltip = "<b>" + e["id"] + "</b><br><b>" + e["type"] + "</b><br>"
             results.append(r)
             i = i + 1
     features["features"] = results
@@ -367,7 +385,7 @@ def initialSetup(app):
                 Input(callbackTuple["input"][0][0], callbackTuple["input"][0][1]),
                 Input(callbackTuple["input"][1][0], callbackTuple["input"][1][1]),
             ],
-        )(leafCallback)
+        )(leafCallback_temporal)
 
 
 # Create the app.
