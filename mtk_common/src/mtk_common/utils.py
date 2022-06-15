@@ -185,7 +185,7 @@ def post_payloads(payloads: list, broker_url: str, logger: logging.Logger) -> bo
                 logger.warning(r.text)
                 success = False
             else:
-                logger.info("Pushed %s payloads", len(payloads))
+                logger.info("Pushed %s payloads", len(chunk))
         except requests.exceptions.RequestException as e:
             logger.error(
                 "Something went wrong connecting to the NGSI-LD broker. Maybe server is down."

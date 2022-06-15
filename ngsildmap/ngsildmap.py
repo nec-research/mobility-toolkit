@@ -58,9 +58,6 @@ defaultAtContext = os.getenv(
 defaultEntityTypeAttributeCombos = os.getenv(
     "DEFAULT_TYPE_ATTRS_COMBOS", "EmissionObserved;co2"
 )
-defaultEntityTypeAttributeCombos = os.getenv(
-    "DEFAULT_TYPE_ATTRS_COMBOS", "TrafficFlowObserved;intensity"
-)
 defaultRange = int(os.getenv("DEFAULT_RANGE", 1 * 3600))
 defaultMins = os.getenv("MINSCALES", "0,0").split(",")
 defaultMaxs = os.getenv("MAXSCALES", "30,100").split(",")
@@ -68,6 +65,8 @@ defaultScaleUnits = os.getenv("SCALEUNITS", "g,m/s^2").split(",")
 defaultPort = int(os.getenv("MAP_PORT", 8050))
 cluster = bool(os.getenv("CLUSTER", True))
 clusterRange = int(os.getenv("CLUSTER_RANGE", 50))
+temporal = (os.getenv('TEMPORAL', 'False') == 'True')
+
 
 colorScales = getColorScales()
 initialBoundMinLat = 999999999999
@@ -379,13 +378,17 @@ def initialSetup(app):
         ]
     )
     for callbackTuple in callbackTuples:
+        _callback = leafCallback
+        if temporal:
+            LOGGER.info("Using temporal ngsi-ld queries")
+            _callback = leafCallback_temporal
         app.callback(
             Output(callbackTuple["output"][0], callbackTuple["output"][1]),
             [
                 Input(callbackTuple["input"][0][0], callbackTuple["input"][0][1]),
                 Input(callbackTuple["input"][1][0], callbackTuple["input"][1][1]),
             ],
-        )(leafCallback_temporal)
+        )(_callback)
 
 
 # Create the app.
