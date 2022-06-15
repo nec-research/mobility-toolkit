@@ -63,7 +63,7 @@ defaultMins = os.getenv("MINSCALES", "0,0").split(",")
 defaultMaxs = os.getenv("MAXSCALES", "30,100").split(",")
 defaultScaleUnits = os.getenv("SCALEUNITS", "g,m/s^2").split(",")
 defaultPort = int(os.getenv("MAP_PORT", 8050))
-cluster = bool(os.getenv("CLUSTER", False))
+cluster = bool(os.getenv("CLUSTER", True))
 clusterRange = int(os.getenv("CLUSTER_RANGE", 50))
 
 colorScales = getColorScales()
@@ -237,6 +237,28 @@ def initialMapSetup(app, entities, entityType):
         return L.circleMarker(latlng, circleOptions);  // sender a simple circle marker.
     }"""
         )
+        cluster_to_layer = assign(
+            """function(feature, latlng, index, context){
+            const {min, max, colorscale, circleOptions, colorProp} = context.props.hideout;
+            const csc = chroma.scale(colorscale).domain([min, max]);
+            // Set color based on mean value of leaves.
+            const leaves = index.getLeaves(feature.properties.cluster_id);
+            let valueSum = 0;
+            for (let i = 0; i < leaves.length; ++i) {
+                valueSum += leaves[i].properties[colorProp]
+            }
+            const valueMean = valueSum / leaves.length;
+            // Render a circle with the number of leaves written in the center.
+            const icon = L.divIcon.scatter({
+                html: '<div style="background-color:white;"><span>' + feature.properties.point_count_abbreviated + '</span></div>',
+                className: "marker-cluster",
+                iconSize: L.point(40, 40),
+                color: csc(valueMean)
+            });
+            return L.marker(latlng, {icon : icon})
+        }"""
+        )
+
         # Create geojson.
         geojson = dl.GeoJSON(
             data=geobuf,
@@ -245,6 +267,7 @@ def initialMapSetup(app, entities, entityType):
             zoomToBounds=False,  # when true, zooms to bounds when data changes
             options=dict(pointToLayer=point_to_layer),  # how to draw points
             cluster=cluster,
+            clusterToLayer=cluster_to_layer,  # how to draw clusters
             superClusterOptions=dict(radius=clusterRange),  # adjust cluster size
             hideout=dict(
                 colorProp=attrib,
