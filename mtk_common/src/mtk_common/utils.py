@@ -167,25 +167,31 @@ def get_request(
         )
         return []
 
+def chunks(lst, n):
+    """Yield successive n-sized chunks from lst."""
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
 
 def post_payloads(payloads: list, broker_url: str, logger: logging.Logger) -> bool:
-    try:
-        url = broker_url + "/ngsi-ld/v1/entityOperations/upsert"
-        print(url)
-        headers = {"Content-Type": "application/ld+json"}
-        r = requests.post(url, data=json.dumps(payloads), headers=headers)
-        if r.status_code not in [201, 204, 207]:
-            logger.warning("request failed: %s", r.status_code)
-            logger.warning(r.text)
-            return False
-        else:
-            logger.info("Pushed %s payloads", len(payloads))
-            return True
-    except requests.exceptions.RequestException as e:
-        logger.error(
-            "Something went wrong connecting to the NGSI-LD broker. Maybe server is down."
-        )
-        return False
+    success = True
+    for chunk in chunks(payloads, 100):
+        try:
+            url = broker_url + "/ngsi-ld/v1/entityOperations/upsert"
+            print(url)
+            headers = {"Content-Type": "application/ld+json"}
+            r = requests.post(url, data=json.dumps(chunk), headers=headers)
+            if r.status_code not in [201, 204, 207]:
+                logger.warning("request failed: %s", r.status_code)
+                logger.warning(r.text)
+                success = False
+            else:
+                logger.info("Pushed %s payloads", len(payloads))
+        except requests.exceptions.RequestException as e:
+            logger.error(
+                "Something went wrong connecting to the NGSI-LD broker. Maybe server is down."
+            )
+            success = False
+    return success
 
 
 def get_temporal_entities(
