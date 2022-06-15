@@ -5,7 +5,6 @@ import json
 import logging
 
 import requests
-from transport_co2 import estimate_co2
 
 
 class PredictedModeTypes(enum.IntEnum):
@@ -118,6 +117,7 @@ def translate_transport_mode(value: str) -> str:
 
 
 def compute_carbon_footprint(mode: str, distance: float) -> float:
+    from transport_co2 import estimate_co2
     co2_mode_mapping = {
         "unknown": "walk",
         "walk": "walk",
