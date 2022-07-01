@@ -20,16 +20,16 @@ The ODALA Mobility Data Toolkit consists of multiple loosely coupled components
 ![](doc/img/overview.png "Mobility Data Toolkit Components")
 *Figure 2. Mobility Data Toolkit Components*
 
-1. **The E-mission framework (https://github.com/e-mission/):** To collect
+1. **The NREL OpenPath framework (https://www.nrel.gov/transportation/openpath.html):** To collect
    individual mobility traces directly from a smartphone application installed on the
    end user devices of the citizens. The open-source framework is maintained by
    the National Renewable Research Laboratory (NREL) with contributions by NEC:
 
-   - **E-Mission NGSI-LD Adapter:** An adapter developed by NEC in ODALA to push data from
-       the E-mission ecosystem to an NGSI-LD context broker. To represent the
-       detailed timeseries data from E-mission, we designed a new NGSI-LD entity
+   - **OpenPath NGSI-LD Adapter:** An adapter developed by NEC in ODALA to push data from
+       the OpenPath ecosystem to an NGSI-LD context broker. To represent the
+       detailed timeseries data from OpenPath, we designed a new NGSI-LD entity
        type named named *SectionObserved* that represents user sections from
-       E-mission (i.e., a timeseries of coordinates that represents a section of a
+       OpenPath (i.e., a timeseries of coordinates that represents a section of a
        user trip, e.g., a person taking a bus ride or drive in a car). In
        *SectionObserved* we abstract such section to a simple GEOJson linestring,
        which we obfuscate by changing the real start and end of the section is
@@ -43,16 +43,16 @@ The ODALA Mobility Data Toolkit consists of multiple loosely coupled components
 
 3. **Green Transport Twin:** The Green Transport Twin (GTT) has the goal to
    estimate the current CO2 footprint (Emission). GTT queries data from the
-   NGSI-LD context broker (Vehicle and SectionObserved data types). For each
-   observed Vehicle, it then uses close-by SectionObserved data if available
-   to estimate the approximate length of this specific Vehicle observation. Recall that
-   Vehicle data is obtained from fixed sensors in the city (e.g., magnetic loop
+   NGSI-LD context broker (TrafficFlowObserved, Vehicle and SectionObserved data types). For each
+   observed TrafficFlowObserved/Vehicle, it then uses close-by SectionObserved data if available
+   to estimate the approximate length of this specific TrafficFlowObserved/Vehicle observation. Recall that
+   TrafficFlowObserved/Vehicle data is obtained from fixed sensors in the city (e.g., magnetic loop
    sensors, cameras, bicycle counters) and therefore cannot tell alone how long
    the associated section/trip of an observation has been. E.g., if we observe
    a car passing by, we do not know only from this observation of the car trip
    has been 5km or 50km. However, this length is crucial for CO2 estimation.
-   Therefore we use the available SectionObserved data from E-mission to
-   estimate the length of each Vehicle observation. After we estimate the
+   Therefore we use the available SectionObserved data from OpenPath to
+   estimate the length of each TrafficFlowObserved/Vehicle observation. After we estimate the
    length, we then calculate the CO2 footprint/emission using the
    [transport-co2 library](https://pypi.org/project/transport-co2/). This
    estimation is based on numbers provided by the European Environment Agency
@@ -69,19 +69,21 @@ The ODALA Mobility Data Toolkit consists of multiple loosely coupled components
    queried from OpenStreetMap to simulate sensed vehicles (e.g., cars, trucks,
    bicycles...). Note that in an actual deployment, this simulator is not
    needed, but deployment cities of the mobility data toolkit need simply to
-   push data of type *Vehicle* to their NGSI-LD context broker. Dependent on
-   the city, this data can come from various sensors such as magnetic loop
-   sensors, traffic cameras, bicycle counters or even manual traffic counting.
+   push data of type *TrafficFlowObserved* or *Vehicle* to their NGSI-LD
+   context broker. Dependent on the city, this data can come from various
+   sensors such as magnetic loop sensors, traffic cameras, bicycle counters or
+   even manual traffic counting.
 
-6. **Grafana Dashboard:** To visualize the CO2 emissions, we employ
-   [Grafana](https://github.com/grafana/grafana) together with the [World Map
-   Plugin](https://grafana.com/grafana/plugins/grafana-worldmap-panel/). We
-   developed an NGSI-LD plugin that enables grafana to directly consume data
-   from an NGSI-LD broker. To enable a visualisation of the data on different
-   levels of detail, we further implement a grid view of the data, that
-   aggregates and visualizes the data in grids that change in size based on the
-   zoom level selected by the user. See Figure 2 for an example visualisation
-   of the ODALA deployment in Heidelberg.
+4. **NGSI-LD adapters:** These adapters map and transform data to NGSI-LD in the
+   Vehicle and TrafficFlowObserved data models:   
+    - from [MDM](https://www.mdm-portal.de), the German National Access Point
+      for Mobility Data (mdm_adapter).
+    - from a NGSIv2 endpoint (ngsiv2_adapter)
+
+6. **Dash Dashboard:** To visualize the mobility data and the CO2 emissions, we employ
+   [Dash](https://github.com/plotly/dash). We developed an NGSI-LD plugin that
+   enables Dash to directly consume data from an NGSI-LD broker. See Figure 2
+   for an example visualisation of the ODALA deployment in Kiel.
    ![](doc/img/dashboard.png "Mobility Data Dashboard")
    *Figure 2. Mobility Data Dashboard*
 
@@ -92,7 +94,7 @@ The ODALA Mobility Data Toolkit consists of multiple loosely coupled components
 
 ### Manual Installation
 
-1. Install and deploy E-mission. See [E-mission
+1. Install and deploy OpenPath. See [OpenPath
    instructions](https://github.com/e-mission/e-mission-server#deployment) for
    detailed steps. Docker container is available. Note that the Mobility Data
    Toolkit will still work without this step, but the estimation of lengths of
@@ -104,24 +106,24 @@ The ODALA Mobility Data Toolkit consists of multiple loosely coupled components
    [here](https://github.com/ScorpioBroker/ScorpioBroker#installation-and-building).
    Docker container is available.
 
-3. Install Grafana including the NGSI-LD plugin and the adapted world map plugin.
+3. Push Vehicle or TrafficFlowObserved data to the NGSI-LD context broker or
+   try our the traffic simulation included in the Green Digital Twin to
+   simulate data. Note: For MDM data or NGSIv2 data you can simply use the
+   adapters available in this repository. If OpenPath is deployed, start the
+   NGSI-LD adapter that takes data from OpenPath and continuously publishes it
+   as SectionObserved entities in the context broker.
 
-4. Push Vehicle data to the NGSI-LD context broker or try our the traffic
-   simulation included in the Green Digital Twin to simulate data. If E-mission
-   is deployed, start the NGSI-LD adapter that takes data from E-mission and
-   continously publishes it as SectionObserved entities in the context broker.
-
-5. Start the Green Transport Twin, e.g., by using docker or by manually
+4. Start the Green Transport Twin, e.g., by using docker or by manually
    starting the python script.
 
-6. Observe EmissionObserved data in the Grafana Dashbaord :-)
+5. Start the Dash ngsildmap script and observe the CO2 data in the dashbaord :-)
 
 
 ### Installation using docker-compose
 
 We also provide a docker-compose file that will fetch and start all the
 necessary components automatically. Please note that this still requires the following manual steps:
-- set the necessary configuration for E-mission (see E-mission documentation for
+- set the necessary configuration for OpenPath (see OpenPath documentation for
 that)
 - setup your existing sensing infrastructure to push data as [Vehicle type](https://github.com/FIWARE/data-models/blob/master/specs/Transportation/Vehicle/Vehicle/doc/spec.md)) to the NGSI-LD broker.
 
