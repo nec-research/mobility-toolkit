@@ -66,7 +66,7 @@ defaultPort = int(os.getenv("MAP_PORT", 8050))
 cluster = bool(os.getenv("CLUSTER", True))
 clusterRange = int(os.getenv("CLUSTER_RANGE", 50))
 temporal = (os.getenv('TEMPORAL', 'False') == 'True')
-
+observedAt = bool(os.getenv("OBSERVED_AT", True))
 
 colorScales = getColorScales()
 initialBoundMinLat = 999999999999
@@ -163,21 +163,21 @@ def leafCallback(n, entityTypeAttrib):
     LOGGER.debug(entityTypeAttrib)
     splitted = entityTypeAttrib.split(";")
     global defaultRange
+    global observedAt
     date = (
         datetime.datetime.now(timezone.utc) - datetime.timedelta(seconds=defaultRange)
     ).strftime("%Y-%m-%dT%H:%M:%SZ")
     # print(defaultHost + '/ngsi-ld/v1/entities?type='+splitted[0]+'&limit=' + str(defaultLimit) + '&q=' + splitted[1] + '.observedAt>=' + date)
-    entities = requests.get(
-        defaultHost
+    url =  defaultHost
         + "/ngsi-ld/v1/entities?type="
         + splitted[0]
         + "&limit="
         + str(defaultLimit)
-        + "&q="
-        + splitted[1]
-        + ".observedAt>="
-        + date,
-        headers={
+    if observedAt:
+      url = url + "&q=" + splitted[1] + ".observedAt>=" + date
+
+    entities = requests.get(url
+        ,headers={
             "Link": "<"
             + defaultAtContext
             + '>; rel="http://www.w3.org/ns/json-ld#context"; type="application/ld+json"',
@@ -317,6 +317,7 @@ def initialSetup(app):
     mapLayers = []
     callbackTuples = []
     global defaultRange
+    global observedAt
     date = (
         datetime.datetime.now(timezone.utc) - datetime.timedelta(seconds=defaultRange)
     ).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -324,17 +325,16 @@ def initialSetup(app):
     for entityType, attribs in type2Attribs.items():
         for attrib in attribs:
             mapSet = initialMapSetup(
-                app,
-                requests.get(
-                    defaultHost
+                url = defaultHost
                     + "/ngsi-ld/v1/entities?type="
                     + entityType
-                    + "&q="
-                    + attrib
-                    + ".observedAt>="
-                    + date
                     + "&limit="
-                    + str(defaultLimit),
+                    + str(defaultLimit)
+                if observedAt:
+                  url = url + "&q=" + attrib + ".observedAt>=" + date
+                app,
+                requests.get(
+                    url,
                     headers={
                         "Link": "<"
                         + defaultAtContext
