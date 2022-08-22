@@ -319,10 +319,10 @@ def initialSetup(app):
 
     for entityType, attribs in type2Attribs.items():
         for attrib in attribs:
+            url = defaultHost + "/ngsi-ld/v1/entities?type=" + entityType + "&limit=" + str(defaultLimit)
+            if observedAt:
+              url = url + "&q=" + attrib + ".observedAt>=" + date
             mapSet = initialMapSetup(
-                url = defaultHost + "/ngsi-ld/v1/entities?type=" + entityType + "&limit=" + str(defaultLimit)
-                if observedAt:
-                  url = url + "&q=" + attrib + ".observedAt>=" + date
                 app,
                 requests.get(
                     url,
