@@ -168,14 +168,9 @@ def leafCallback(n, entityTypeAttrib):
         datetime.datetime.now(timezone.utc) - datetime.timedelta(seconds=defaultRange)
     ).strftime("%Y-%m-%dT%H:%M:%SZ")
     # print(defaultHost + '/ngsi-ld/v1/entities?type='+splitted[0]+'&limit=' + str(defaultLimit) + '&q=' + splitted[1] + '.observedAt>=' + date)
-    url =  defaultHost
-        + "/ngsi-ld/v1/entities?type="
-        + splitted[0]
-        + "&limit="
-        + str(defaultLimit)
+    url =  defaultHost + "/ngsi-ld/v1/entities?type=" + splitted[0] + "&limit=" + str(defaultLimit)
     if observedAt:
       url = url + "&q=" + splitted[1] + ".observedAt>=" + date
-
     entities = requests.get(url
         ,headers={
             "Link": "<"
@@ -325,11 +320,7 @@ def initialSetup(app):
     for entityType, attribs in type2Attribs.items():
         for attrib in attribs:
             mapSet = initialMapSetup(
-                url = defaultHost
-                    + "/ngsi-ld/v1/entities?type="
-                    + entityType
-                    + "&limit="
-                    + str(defaultLimit)
+                url = defaultHost + "/ngsi-ld/v1/entities?type=" + entityType + "&limit=" + str(defaultLimit)
                 if observedAt:
                   url = url + "&q=" + attrib + ".observedAt>=" + date
                 app,
