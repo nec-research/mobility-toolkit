@@ -66,7 +66,7 @@ defaultPort = int(os.getenv("MAP_PORT", 8050))
 cluster = bool(os.getenv("CLUSTER", True))
 clusterRange = int(os.getenv("CLUSTER_RANGE", 50))
 temporal = (os.getenv('TEMPORAL', 'False') == 'True')
-observedAt = bool(os.getenv("OBSERVED_AT", True))
+observedAt = (os.getenv("OBSERVED_AT", 'True') == 'True')
 
 colorScales = getColorScales()
 initialBoundMinLat = 999999999999
@@ -170,7 +170,7 @@ def leafCallback(n, entityTypeAttrib):
     # print(defaultHost + '/ngsi-ld/v1/entities?type='+splitted[0]+'&limit=' + str(defaultLimit) + '&q=' + splitted[1] + '.observedAt>=' + date)
     url =  defaultHost + "/ngsi-ld/v1/entities?type=" + splitted[0] + "&limit=" + str(defaultLimit)
     if observedAt:
-      print("observedAt callback")
+      #print("observedAt callback")
       url = url + "&q=" + splitted[1] + ".observedAt>=" + date
     entities = requests.get(url
         ,headers={
@@ -322,7 +322,7 @@ def initialSetup(app):
         for attrib in attribs:
             url = defaultHost + "/ngsi-ld/v1/entities?type=" + entityType + "&limit=" + str(defaultLimit)
             if observedAt:
-              print("observedAt")
+              #print("observedAt")
               url = url + "&q=" + attrib + ".observedAt>=" + date
             mapSet = initialMapSetup(
                 app,
