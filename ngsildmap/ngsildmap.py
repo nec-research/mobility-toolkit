@@ -83,6 +83,7 @@ def getToolTip(entityId, properties):
     result = "<b>" + entityId + "</b><br><b>" + properties["type"] + "</b><br>"
     del properties["type"]
     del properties["location"]
+    del properties["@context"]
     for key, value in properties.items():
         result = result + "<b>" + key + ":</b>"
         if value["type"] == "Relationship":
