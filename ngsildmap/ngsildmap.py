@@ -81,9 +81,12 @@ type2Attribs = loadType2Attribs()
 
 def getToolTip(entityId, properties):
     result = "<b>" + entityId + "</b><br><b>" + properties["type"] + "</b><br>"
-    del properties["type"]
-    del properties["location"]
-    del properties["@context"]
+    if "type" in properties:
+      del properties["type"]
+    if "location" in properties:
+      del properties["location"]
+    if "@context" in properties:
+      del properties["@context"]
     for key, value in properties.items():
         result = result + "<b>" + key + ":</b>"
         if value["type"] == "Relationship":
