@@ -229,8 +229,8 @@ def getUnitCode(entities, attrib):
     for feature in features:
       if "unitCode" in feature["properties"][attrib]:
         return feature["properties"][attrib]["unitCode"]
-	return None
-  
+    return None
+
 def initialMapSetup(app, entities, entityType):
     global type2Attribs
     global colorScales
