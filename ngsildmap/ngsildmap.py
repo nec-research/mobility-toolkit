@@ -222,7 +222,15 @@ def getMinMax(clearedGeoJson, attrib):
             maxR = value
     return [minR, maxR]
 
-
+def getUnitCode(entities, attrib):
+    if "features" not in entities:
+        return None
+    features = entities["features"]
+    for feature in features:
+      if "unitCode" in feature["properties"][attrib]:
+        return feature["properties"][attrib]["unitCode"]
+	return None
+  
 def initialMapSetup(app, entities, entityType):
     global type2Attribs
     global colorScales
@@ -239,13 +247,16 @@ def initialMapSetup(app, entities, entityType):
             geobuf = dlx.geojson_to_geobuf(clearedGeoJson)
         minMax = [int(defaultMins[count]), int(defaultMaxs[count])]
         colorscale = colorScales[count]
+        unitCode = getUnitCode(entities, attrib)
+        if unitCode == None:
+          unitCode = defaultScaleUnits[count]
         colorbar = dl.Colorbar(
             colorscale=colorscale,
             width=20,
             height=150,
             min=minMax[0],
             max=minMax[1],
-            unit=defaultScaleUnits[count],
+            unit=unitCode,
         )
         count = count + 1
         # Geojson rendering logic, must be JavaScript as it is executed in clientside.
