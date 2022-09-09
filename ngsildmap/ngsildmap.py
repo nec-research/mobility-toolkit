@@ -60,7 +60,7 @@ defaultEntityTypeAttributeCombos = os.getenv(
 )
 defaultRange = int(os.getenv("DEFAULT_RANGE", 1 * 3600))
 defaultMins = os.getenv("MINSCALES", "0,0").split(",")
-defaultMaxs = os.getenv("MAXSCALES", "30,100").split(",")
+defaultMaxs = os.getenv("MAXSCALES", "100,100").split(",")
 defaultScaleUnits = os.getenv("SCALEUNITS", "g,m/s^2").split(",")
 defaultPort = int(os.getenv("MAP_PORT", 8050))
 cluster = bool(os.getenv("CLUSTER", True))
