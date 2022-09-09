@@ -227,8 +227,11 @@ def getUnitCode(entities, attrib):
         return None
     features = entities["features"]
     for feature in features:
-      if "unitCode" in feature["properties"][attrib]:
-        return feature["properties"][attrib]["unitCode"]
+      try:
+        if "unitCode" in feature["properties"][attrib]:
+          return feature["properties"][attrib]["unitCode"]
+      except:
+        continue
     return None
 
 def initialMapSetup(app, entities, entityType):
