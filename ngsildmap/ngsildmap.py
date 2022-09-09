@@ -93,7 +93,10 @@ def getToolTip(entityId, properties):
             result = result + value["object"]
         else:
             result = result + str(value["value"])
-        result = result + "<br>"
+        
+        if "observedAt" in value:
+          result = result + "<br>" + value["observedAt"]
+        result = result + "<br><br>"
     return result
 
 
