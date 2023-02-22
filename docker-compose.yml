@@ -43,6 +43,7 @@ services:
       INTERVAL: 900
       URL: http://scorpio:9090
       DB_URL: db
+      LOGGING_LEVEL: 10
     restart: on-failure
     depends_on:
       - db
