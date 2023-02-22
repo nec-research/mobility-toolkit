@@ -4,6 +4,6 @@ ENV PYTHONUNBUFFERED=1
 WORKDIR /mobility_toolkit
 COPY mtk_common/src/mtk_common/* /mobility_toolkit/mtk_common/
 
-COPY emission_adapter/* /mobility_toolkit/
+COPY emission_adapter/ /mobility_toolkit/
 RUN pip install -r requirements.txt
 CMD python emission_adapter.py --url=${URL} --intervall=${INTERVAL} --logging_folder=${LOGGING_FOLDER} --logging_level=${LOGGING_LEVEL} --dburl=${DB_URL}
