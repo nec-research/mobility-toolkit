@@ -67,6 +67,7 @@ cluster = bool(os.getenv("CLUSTER", True))
 clusterRange = int(os.getenv("CLUSTER_RANGE", 50))
 temporal = (os.getenv('TEMPORAL', 'False') == 'True')
 observedAt = (os.getenv("OBSERVED_AT", 'True') == 'True')
+defaultBasePath = os.getenv("BASE_PATH", "/")
 
 colorScales = getColorScales()
 initialBoundMinLat = 999999999999
@@ -93,7 +94,7 @@ def getToolTip(entityId, properties):
             result = result + value["object"]
         else:
             result = result + str(value["value"])
-        
+
         if "observedAt" in value:
           result = result + "<br>" + value["observedAt"]
         result = result + "<br><br>"
@@ -406,7 +407,7 @@ def initialSetup(app):
 
 
 # Create the app.
-app = Dash(external_scripts=[chroma], prevent_initial_callbacks=True)
+app = Dash(external_scripts=[chroma], prevent_initial_callbacks=True, url_base_pathname = defaultBasePath)
 initialSetup(app)
 
 
